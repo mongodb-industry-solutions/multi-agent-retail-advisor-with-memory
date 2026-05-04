@@ -1,0 +1,342 @@
+[
+  {
+    "name": "Merrell Moab 3 Waterproof Hiking Boot",
+    "description": "The Merrell Moab 3 Waterproof is a legendary trail boot with Vibram outsole, M Select DRY waterproof membrane, and air cushion heel. Perfect for all-day comfort on rocky terrain.",
+    "brand": "Merrell",
+    "category": "hiking_boots",
+    "price": 119.95,
+    "size_options": ["7", "8", "9", "10", "11", "12", "13"],
+    "attributes": {
+      "waterproof": true,
+      "eco_friendly": false,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["earth", "black", "olive"],
+    "rating": 4.7,
+    "reviews_count": 3241
+  },
+  {
+    "name": "Patagonia Footprint Waterproof Boot",
+    "description": "Made with recycled materials and a GORE-TEX membrane, the Patagonia Footprint delivers waterproof protection with environmental responsibility. Features a Vibram Megagrip outsole and Fair Trade certified construction.",
+    "brand": "Patagonia",
+    "category": "hiking_boots",
+    "price": 149.00,
+    "size_options": ["7", "8", "9", "10", "11", "12"],
+    "attributes": {
+      "waterproof": true,
+      "eco_friendly": true,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["forge grey", "black"],
+    "rating": 4.6,
+    "reviews_count": 892
+  },
+  {
+    "name": "Salomon X Ultra 4 GTX",
+    "description": "Salomon's X Ultra 4 GTX features GORE-TEX Extended Comfort waterproofing, Contagrip outsole, and Sensifit chassis for precision fit. Exceptional stability on technical trails.",
+    "brand": "Salomon",
+    "category": "hiking_boots",
+    "price": 169.95,
+    "size_options": ["7", "8", "9", "10", "11", "12", "13", "14"],
+    "attributes": {
+      "waterproof": true,
+      "eco_friendly": false,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["black/asphalt", "deep blue"],
+    "rating": 4.8,
+    "reviews_count": 1567
+  },
+  {
+    "name": "Columbia Newton Ridge Waterproof Boot",
+    "description": "Columbia's Newton Ridge offers waterproof construction with seam-sealed bootie and Techlite midsole. Budget-friendly trail boot with Omni-Grip rubber outsole for reliable traction.",
+    "brand": "Columbia",
+    "category": "hiking_boots",
+    "price": 89.95,
+    "size_options": ["7", "8", "9", "10", "11", "12", "13"],
+    "attributes": {
+      "waterproof": true,
+      "eco_friendly": false,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["cordovan/garnet", "black"],
+    "rating": 4.4,
+    "reviews_count": 2103
+  },
+  {
+    "name": "Arc'teryx Acrux TR GTX",
+    "description": "Premium Gore-Tex Pro waterproof hiking boot from Arc'teryx with Vibram Megagrip outsole. Built for technical mountain terrain with exceptional foot support and precision fit. Sustainably produced with recycled materials.",
+    "brand": "Arc'teryx",
+    "category": "hiking_boots",
+    "price": 249.00,
+    "size_options": ["8", "9", "10", "11", "12"],
+    "attributes": {
+      "waterproof": true,
+      "eco_friendly": true,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["black", "dark rust"],
+    "rating": 4.9,
+    "reviews_count": 412
+  },
+  {
+    "name": "KEEN Targhee III Waterproof",
+    "description": "KEEN's Targhee III uses 100% recycled lining and KEEN.DRY waterproof membrane. Wide toe box, metatomical footbed, and multi-directional outsole lugs. Certified KEEN.PROTECT with eco-conscious manufacturing.",
+    "brand": "KEEN",
+    "category": "hiking_boots",
+    "price": 134.95,
+    "size_options": ["7", "8", "9", "10", "11", "12", "13", "14"],
+    "attributes": {
+      "waterproof": true,
+      "eco_friendly": true,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["brindle/red", "cascade/sky"],
+    "rating": 4.6,
+    "reviews_count": 1789
+  },
+  {
+    "name": "La Sportiva Nucleo High GTX",
+    "description": "Italian-crafted mountaineering boot with GORE-TEX waterproofing and Impact Brake System rubber outsole. Lightweight yet durable with a micro-injected rubber rand for edge control.",
+    "brand": "La Sportiva",
+    "category": "hiking_boots",
+    "price": 199.00,
+    "size_options": ["8", "9", "10", "11", "12"],
+    "attributes": {
+      "waterproof": true,
+      "eco_friendly": false,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["carbon/opal", "carbon/flame"],
+    "rating": 4.7,
+    "reviews_count": 634
+  },
+  {
+    "name": "Patagonia Torrentshell 3L Rain Jacket",
+    "description": "The Torrentshell 3L is Patagonia's most sustainable waterproof shell. Made from recycled nylon with bluesign-approved H2No Performance Standard. Fair Trade Certified. 100% waterproof, windproof, and breathable.",
+    "brand": "Patagonia",
+    "category": "rain_jackets",
+    "price": 179.00,
+    "size_options": ["XS", "S", "M", "L", "XL", "XXL"],
+    "attributes": {
+      "waterproof": true,
+      "eco_friendly": true,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["forge grey", "black", "navy"],
+    "rating": 4.8,
+    "reviews_count": 2876
+  },
+  {
+    "name": "Arc'teryx Beta LT Jacket",
+    "description": "Ultra-lightweight 3-layer GORE-TEX jacket engineered for alpine pursuits. Features StormHood and motion-capture patterning. Arc'teryx uses Bluesign certified fabrics and responsible down standard throughout.",
+    "brand": "Arc'teryx",
+    "category": "rain_jackets",
+    "price": 349.00,
+    "size_options": ["XS", "S", "M", "L", "XL"],
+    "attributes": {
+      "waterproof": true,
+      "eco_friendly": true,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["black", "cobalt", "trail blaze"],
+    "rating": 4.9,
+    "reviews_count": 1203
+  },
+  {
+    "name": "Columbia Watertight II Rain Jacket",
+    "description": "Columbia's Watertight II uses Omni-Tech waterproof breathable technology with fully seam-sealed construction. Packable design with hidden hood. Great value for casual hikers and day adventurers.",
+    "brand": "Columbia",
+    "category": "rain_jackets",
+    "price": 69.95,
+    "size_options": ["S", "M", "L", "XL", "XXL", "3XL"],
+    "attributes": {
+      "waterproof": true,
+      "eco_friendly": false,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["black", "bright red", "collegiate navy"],
+    "rating": 4.3,
+    "reviews_count": 4521
+  },
+  {
+    "name": "Black Diamond Distance Carbon Trekking Poles",
+    "description": "Ultra-lightweight carbon fiber trekking poles with FlickLock Pro adjustability, padded grip, and flip-cap baskets. Designed for fast-packing and trail running. Responsibly manufactured with recycled packaging.",
+    "brand": "Black Diamond",
+    "category": "trekking_poles",
+    "price": 169.95,
+    "size_options": ["one_size"],
+    "attributes": {
+      "waterproof": false,
+      "eco_friendly": true,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["ultra blue", "black"],
+    "rating": 4.7,
+    "reviews_count": 923
+  },
+  {
+    "name": "Osprey Trail Trekking Poles",
+    "description": "Osprey's aluminum trekking poles with foam grip, dual-density wrist straps, and three-section adjustable shaft. EVA foam grip extension for variable terrain. Osprey uses responsible manufacturing practices.",
+    "brand": "Osprey",
+    "category": "trekking_poles",
+    "price": 59.95,
+    "size_options": ["one_size"],
+    "attributes": {
+      "waterproof": false,
+      "eco_friendly": false,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["black", "cobalt blue"],
+    "rating": 4.4,
+    "reviews_count": 612
+  },
+  {
+    "name": "Osprey Atmos AG 65 Backpack",
+    "description": "Osprey's award-winning Anti-Gravity suspension system and breathable mesh trampoline back panel. 65L capacity with integrated rain cover, hipbelt pockets, and sleeping bag compartment. Lifetime guarantee.",
+    "brand": "Osprey",
+    "category": "backpacks",
+    "price": 290.00,
+    "size_options": ["S/M", "M/L"],
+    "attributes": {
+      "waterproof": false,
+      "eco_friendly": false,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["abyss grey", "rigby red"],
+    "rating": 4.8,
+    "reviews_count": 3412
+  },
+  {
+    "name": "Patagonia Black Hole 32L Backpack",
+    "description": "Made from recycled polyester ripstop with weatherproof DWR finish. Patagonia's Black Hole packs are built tough with organization and the environment in mind. Bluesign approved fabrics.",
+    "brand": "Patagonia",
+    "category": "backpacks",
+    "price": 129.00,
+    "size_options": ["one_size"],
+    "attributes": {
+      "waterproof": false,
+      "eco_friendly": true,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["black", "ink", "forge grey"],
+    "rating": 4.7,
+    "reviews_count": 1876
+  },
+  {
+    "name": "Patagonia Capilene Cool Merino Base Layer",
+    "description": "Patagonia's Capilene Cool Merino blends recycled polyester with Merino wool for moisture management and odor control. Fair Trade certified. 50% recycled content. Ideal base layer for active hiking.",
+    "brand": "Patagonia",
+    "category": "base_layers",
+    "price": 75.00,
+    "size_options": ["XS", "S", "M", "L", "XL", "XXL"],
+    "attributes": {
+      "waterproof": false,
+      "eco_friendly": true,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["forge grey", "black", "light violet"],
+    "rating": 4.6,
+    "reviews_count": 1123
+  },
+  {
+    "name": "Arc'teryx Rho LT Zip Neck Base Layer",
+    "description": "Arc'teryx Phasic SL fabric wicks moisture while maintaining warmth. Flatlock seam construction for comfort under pack. Bluesign approved. Lightweight technical base for active pursuits.",
+    "brand": "Arc'teryx",
+    "category": "base_layers",
+    "price": 89.00,
+    "size_options": ["XS", "S", "M", "L", "XL"],
+    "attributes": {
+      "waterproof": false,
+      "eco_friendly": true,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["black", "cobalt moon"],
+    "rating": 4.7,
+    "reviews_count": 567
+  },
+  {
+    "name": "Darn Tough Vermont Hiker Merino Wool Sock",
+    "description": "Made in Vermont from 100% Merino wool with lifetime guarantee. Cushioned hiking sock with reinforced heel and toe. Naturally moisture-wicking and odor-resistant. No Chinese merino wool — all sourced responsibly.",
+    "brand": "Darn Tough",
+    "category": "accessories",
+    "price": 24.95,
+    "size_options": ["S", "M", "L", "XL"],
+    "attributes": {
+      "waterproof": false,
+      "eco_friendly": true,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["lochness", "charcoal", "midnight navy"],
+    "rating": 4.9,
+    "reviews_count": 8934
+  },
+  {
+    "name": "Black Diamond Spot 400 Headlamp",
+    "description": "400 lumen headlamp with PowerTap Technology for quick brightness adjustments. Waterproof IPX8 rating. Dual fuel compatible (lithium or alkaline AAA). Ideal for night hikes and camping.",
+    "brand": "Black Diamond",
+    "category": "accessories",
+    "price": 49.95,
+    "size_options": ["one_size"],
+    "attributes": {
+      "waterproof": true,
+      "eco_friendly": false,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["octane", "astral blue", "ultra blue"],
+    "rating": 4.7,
+    "reviews_count": 2341
+  },
+  {
+    "name": "Hydro Flask 32oz Wide Mouth Trail Series",
+    "description": "Professional grade stainless steel bottle with TempShield double-wall vacuum insulation. Keeps drinks cold 24h, hot 12h. Dishwasher safe. Made from 18/8 pro-grade stainless steel. Certified carbon neutral.",
+    "brand": "Hydro Flask",
+    "category": "accessories",
+    "price": 49.95,
+    "size_options": ["one_size"],
+    "attributes": {
+      "waterproof": false,
+      "eco_friendly": true,
+      "insulated": true,
+      "gender": "unisex"
+    },
+    "colors": ["black", "cobalt", "white", "fog"],
+    "rating": 4.8,
+    "reviews_count": 12456
+  },
+  {
+    "name": "Merrell Trail Glove 7 Minimalist Shoe",
+    "description": "Zero-drop minimalist trail shoe with Vibram TC5+ outsole and breathable mesh upper. Lightweight natural fit for experienced trail runners wanting ground feel. Made with recycled materials.",
+    "brand": "Merrell",
+    "category": "trail_shoes",
+    "price": 109.95,
+    "size_options": ["7", "8", "9", "10", "11", "12"],
+    "attributes": {
+      "waterproof": false,
+      "eco_friendly": true,
+      "insulated": false,
+      "gender": "unisex"
+    },
+    "colors": ["black", "clay"],
+    "rating": 4.5,
+    "reviews_count": 743
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "_id": "user001",
+    "name": "Alice Chen",
+    "email": "alice@example.com",
+    "preferences": {
+      "brands": ["Patagonia", "Arc'teryx", "KEEN"],
+      "price_range": { "min": 50, "max": 200 },
+      "categories": ["hiking_boots", "rain_jackets", "base_layers"],
+      "sizes": { "shoes": "9", "clothing": "M" }
+    },
+    "profile": {
+      "experience": "intermediate",
+      "activities": ["day hiking", "backpacking", "camping"],
+      "location": "Pacific Northwest"
+    }
+  },
+  {
+    "_id": "user002",
+    "name": "Bob Martinez",
+    "email": "bob@example.com",
+    "preferences": {
+      "brands": ["Columbia", "Merrell"],
+      "price_range": { "min": 0, "max": 100 },
+      "categories": ["hiking_boots", "backpacks"],
+      "sizes": { "shoes": "11", "clothing": "L" }
+    },
+    "profile": {
+      "experience": "beginner",
+      "activities": ["weekend hiking", "camping"],
+      "location": "Colorado"
+    }
+  },
+  {
+    "_id": "user003",
+    "name": "Carol Kim",
+    "email": "carol@example.com",
+    "preferences": {
+      "brands": ["Patagonia", "Darn Tough", "Arc'teryx"],
+      "price_range": { "min": 50, "max": 350 },
+      "categories": ["rain_jackets", "base_layers", "accessories"],
+      "sizes": { "shoes": "8", "clothing": "S" }
+    },
+    "profile": {
+      "experience": "advanced",
+      "activities": ["mountaineering", "backpacking", "trail running"],
+      "location": "Vermont"
+    }
+  }
+]
