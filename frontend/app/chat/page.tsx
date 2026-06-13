@@ -5,13 +5,16 @@ import {
   sendChat,
   getTrace,
   getAgents,
+  getProfile,
   ChatResponse,
   TraceResponse,
   AgentCard,
+  ProfileResponse,
 } from "@/app/lib/api";
 import { AgentCards } from "@/app/components/AgentCards";
 import { TracePanel } from "@/app/components/TracePanel";
 import { MongoDocViewer } from "@/app/components/MongoDocViewer";
+import { ProfilePopover } from "@/app/components/ProfilePopover";
 import Button from "@leafygreen-ui/button";
 import { Select, Option } from "@leafygreen-ui/select";
 import TextArea from "@leafygreen-ui/text-area";
@@ -58,6 +61,8 @@ export default function ChatPage() {
   const [activeTab, setActiveTab] = useState<TabName>("agents");
   const [activeAgent, setActiveAgent] = useState<string | undefined>();
   const [mounted, setMounted] = useState(false);
+  const [profile, setProfile] = useState<ProfileResponse | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { pushToast } = useToast();
 
@@ -68,6 +73,14 @@ export default function ChatPage() {
   useEffect(() => {
     getAgents().then(setAgents).catch(() => {});
   }, []);
+  useEffect(() => {
+    setProfile(null);
+    setProfileLoading(true);
+    getProfile(selectedUser.id)
+      .then(setProfile)
+      .catch(() => {})
+      .finally(() => setProfileLoading(false));
+  }, [selectedUser.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -101,8 +114,12 @@ export default function ChatPage() {
         },
       ]);
 
-      const traceData = await getTrace(response.sessionId);
+      const [traceData, freshProfile] = await Promise.all([
+        getTrace(response.sessionId),
+        getProfile(selectedUser.id),
+      ]);
       setTrace(traceData);
+      setProfile(freshProfile);
     } catch {
       pushToast({
         title: "Backend unreachable",
@@ -156,6 +173,11 @@ export default function ChatPage() {
                 </Option>
               ))}
             </Select>
+            <ProfilePopover
+              userName={selectedUser.name}
+              profile={profile}
+              loading={profileLoading}
+            />
             <Button size="small" variant="default" onClick={newSession} className="whitespace-nowrap">
               New chat
             </Button>
@@ -318,6 +340,8 @@ export default function ChatPage() {
                 <MongoDocViewer
                   session={trace?.session ?? {}}
                   agentState={trace?.agentState ?? {}}
+                  user={profile?.user ?? {}}
+                  memory={profile?.memory ?? {}}
                 />
                 {trace && (
                   <div className="mt-4">

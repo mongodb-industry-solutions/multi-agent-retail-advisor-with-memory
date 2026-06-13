@@ -63,3 +63,14 @@ export async function getAgents(): Promise<AgentCard[]> {
   if (!res.ok) throw new Error(`Agents fetch failed: ${res.status}`);
   return res.json();
 }
+
+export interface ProfileResponse {
+  user: Record<string, unknown>;
+  memory: Record<string, unknown>;
+}
+
+export async function getProfile(userId: string): Promise<ProfileResponse> {
+  const res = await fetch(`/api/profile/${userId}`);
+  if (!res.ok) throw new Error(`Profile fetch failed: ${res.status}`);
+  return res.json();
+}
