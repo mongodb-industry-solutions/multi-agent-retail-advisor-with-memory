@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Button from "@leafygreen-ui/button";
+import { Code } from "@leafygreen-ui/code";
+import { Description, InlineCode } from "@leafygreen-ui/typography";
 
 interface Props {
   session: Record<string, unknown>;
@@ -22,9 +25,9 @@ export function MongoDocViewer({ session, agentState }: Props) {
 
   if (!session || Object.keys(session).length === 0) {
     return (
-      <div className="text-center py-6 text-gray-400 text-xs">
+      <Description className="text-center py-6 block">
         MongoDB documents will appear here after a response
-      </div>
+      </Description>
     );
   }
 
@@ -32,26 +35,25 @@ export function MongoDocViewer({ session, agentState }: Props) {
     <div>
       <div className="flex gap-1 mb-2">
         {(["session", "state"] as const).map((key) => (
-          <button
+          <Button
             key={key}
+            size="small"
+            variant={activeDoc === key ? "primary" : "default"}
             onClick={() => setActiveDoc(key)}
-            className={`text-xs font-mono px-2 py-1 rounded transition-colors ${
-              activeDoc === key
-                ? "bg-green-600 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
           >
             {labels[key]}
-          </button>
+          </Button>
         ))}
       </div>
       <div className="relative">
-        <div className="absolute top-2 right-2 text-xs text-gray-400 font-mono bg-white px-1 rounded">
-          MongoDB Atlas
+        <div className="absolute top-2 right-2 z-10">
+          <InlineCode>MongoDB Atlas</InlineCode>
         </div>
-        <pre className="text-xs bg-gray-900 text-green-400 rounded-lg p-3 overflow-auto max-h-56 font-mono">
-          {JSON.stringify(docs[activeDoc], null, 2)}
-        </pre>
+        <div className="max-h-56 overflow-auto">
+          <Code language="json" darkMode>
+            {JSON.stringify(docs[activeDoc], null, 2)}
+          </Code>
+        </div>
       </div>
     </div>
   );

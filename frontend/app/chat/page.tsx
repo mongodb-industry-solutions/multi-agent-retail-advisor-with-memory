@@ -12,6 +12,12 @@ import {
 import { AgentCards } from "@/app/components/AgentCards";
 import { TracePanel } from "@/app/components/TracePanel";
 import { MongoDocViewer } from "@/app/components/MongoDocViewer";
+import Button from "@leafygreen-ui/button";
+import { Select, Option } from "@leafygreen-ui/select";
+import TextArea from "@leafygreen-ui/text-area";
+import { Tabs, Tab } from "@leafygreen-ui/tabs";
+import { Code } from "@leafygreen-ui/code";
+import { Description, InlineCode } from "@leafygreen-ui/typography";
 
 interface Message {
   role: "user" | "assistant";
@@ -33,6 +39,9 @@ const SAMPLE_QUERIES = [
   "Find me trekking poles and a base layer under $200 total",
 ];
 
+const TAB_ORDER = ["agents", "trace", "mongo"] as const;
+type TabName = (typeof TAB_ORDER)[number];
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -41,10 +50,15 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [agents, setAgents] = useState<AgentCard[]>([]);
   const [trace, setTrace] = useState<TraceResponse | null>(null);
-  const [activeTab, setActiveTab] = useState<"trace" | "agents" | "mongo">("agents");
+  const [activeTab, setActiveTab] = useState<TabName>("agents");
   const [activeAgent, setActiveAgent] = useState<string | undefined>();
+  const [mounted, setMounted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const activeTabIndex = TAB_ORDER.indexOf(activeTab);
+  const traceCount = trace?.toolInvocations.length ?? 0;
+
+  useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
     getAgents().then(setAgents).catch(() => {});
   }, []);
@@ -81,10 +95,9 @@ export default function ChatPage() {
         },
       ]);
 
-      // Fetch trace
       const traceData = await getTrace(response.sessionId);
       setTrace(traceData);
-    } catch (err) {
+    } catch {
       setMessages((prev) => [
         ...prev,
         {
@@ -117,35 +130,31 @@ export default function ChatPage() {
       {/* LEFT: Chat panel */}
       <div className="flex flex-col w-[55%] border-r border-gray-200 bg-white">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-white">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-green-500" />
-              <span className="font-semibold text-gray-800 text-sm">Multi-Agent Retail Advisor with Memory</span>
-            </div>
-            <span className="text-xs text-gray-400 hidden sm:block">ADK + A2A + MongoDB + Anthropic</span>
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100 bg-white">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="w-3 h-3 rounded-full bg-green-500" />
+            <span className="font-semibold text-gray-800 text-sm">Multi-Agent Retail Advisor</span>
           </div>
-          <div className="flex items-center gap-2">
-            <select
+          <span className="text-xs text-gray-400 hidden lg:block shrink-0">ADK · A2A · MongoDB · Anthropic</span>
+          <div className="flex items-center gap-2 ml-auto shrink-0">
+            <Select
+              size="small"
+              aria-label="Select user"
               value={selectedUser.id}
-              onChange={(e) => {
-                setSelectedUser(USERS.find((u) => u.id === e.target.value)!);
+              onChange={(value) => {
+                setSelectedUser(USERS.find((u) => u.id === value)!);
                 newSession();
               }}
-              className="text-xs border border-gray-200 rounded-md px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500"
             >
               {USERS.map((u) => (
-                <option key={u.id} value={u.id}>
+                <Option key={u.id} value={u.id}>
                   {u.label}
-                </option>
+                </Option>
               ))}
-            </select>
-            <button
-              onClick={newSession}
-              className="text-xs text-gray-500 hover:text-gray-800 border border-gray-200 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors"
-            >
+            </Select>
+            <Button size="small" variant="default" onClick={newSession} className="whitespace-nowrap">
               New chat
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -155,15 +164,15 @@ export default function ChatPage() {
             <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="text-4xl mb-3">🏔️</div>
               <h2 className="font-semibold text-gray-700 mb-1">Retail Advisor Agent</h2>
-              <p className="text-sm text-gray-400 max-w-xs mb-6">
-                Powered by Anthropic LLM, Google ADK & A2A patterns, and MongoDB as the memory layer.
-              </p>
+              <Description className="max-w-xs mb-6 block">
+                Powered by Anthropic LLM, Google ADK &amp; A2A patterns, and MongoDB as the memory layer.
+              </Description>
               <div className="space-y-2 w-full max-w-sm">
                 {SAMPLE_QUERIES.map((q) => (
                   <button
                     key={q}
                     onClick={() => setInput(q)}
-                    className="w-full text-left text-xs text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 transition-colors"
+                    className="w-full text-left text-xs text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 transition-colors leading-snug"
                   >
                     {q}
                   </button>
@@ -221,32 +230,35 @@ export default function ChatPage() {
         </div>
 
         {/* Input */}
-        <div className="px-5 py-3 border-t border-gray-100">
-          <div className="flex gap-2">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask about outdoor gear…"
-              rows={2}
-              className="flex-1 text-sm text-gray-900 bg-white border border-gray-200 rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent placeholder-gray-400"
-            />
-            <button
+        <div className="px-5 pt-2 pb-3 border-t border-gray-100">
+          <div className="flex gap-2 items-end">
+            <div className="flex-1 min-w-0">
+              <TextArea
+                label="Your message"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown as React.KeyboardEventHandler<HTMLTextAreaElement>}
+                placeholder="Ask about outdoor gear…"
+                disabled={loading}
+                rows={2}
+              />
+            </div>
+            <Button
+              variant="primary"
               onClick={handleSend}
               disabled={loading || !input.trim()}
-              className="self-end px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? "…" : "Send"}
-            </button>
+            </Button>
           </div>
-          <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
+          <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-400">
             <span>Enter to send</span>
             <span>·</span>
             <span>Shift+Enter for newline</span>
             {sessionId && (
               <>
                 <span>·</span>
-                <span className="font-mono">session: {sessionId.slice(0, 8)}</span>
+                <span>session: <InlineCode>{sessionId.slice(0, 8)}</InlineCode></span>
               </>
             )}
           </div>
@@ -255,81 +267,63 @@ export default function ChatPage() {
 
       {/* RIGHT: Debug panel */}
       <div className="flex flex-col w-[45%] bg-white overflow-hidden">
-        {/* Tabs */}
-        <div className="flex items-center px-4 pt-3 pb-0 border-b border-gray-100 gap-1">
-          {(["agents", "trace", "mongo"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`text-xs font-medium px-3 py-2 rounded-t-lg transition-colors border-b-2 ${
-                activeTab === tab
-                  ? "border-green-600 text-green-700 bg-green-50"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              {tab === "agents" ? "🤖 Agents" : tab === "trace" ? "🔎 Trace" : "🍃 MongoDB"}
-              {tab === "trace" && trace && trace.toolInvocations.length > 0 && (
-                <span className="ml-1.5 bg-green-600 text-white text-xs px-1.5 py-0.5 rounded-full">
-                  {trace.toolInvocations.length}
-                </span>
-              )}
-            </button>
-          ))}
-          <div className="ml-auto text-xs text-gray-400 pb-2">
-            {sessionId && (
-              <span className="font-mono bg-gray-100 px-2 py-1 rounded">
-                {sessionId.slice(0, 8)}
-              </span>
-            )}
-          </div>
-        </div>
+        <div className="flex-1 overflow-y-auto">
+          {mounted && (
+          <Tabs
+            value={activeTabIndex}
+            onValueChange={(idx) => setActiveTab(TAB_ORDER[idx as number])}
+            aria-label="Debug panel"
+          >
+            <Tab name="🤖 Agents">
+              <div className="p-4 pt-3">
+                <Description className="mb-3 block">
+                  A2A Agent Cards — each agent advertises its skills and capabilities:
+                </Description>
+                {agents.length > 0 ? (
+                  <AgentCards agents={agents} activeAgent={loading ? activeAgent : undefined} />
+                ) : (
+                  <Description className="text-center py-8 block">
+                    Connect to the Java backend to load agent cards
+                  </Description>
+                )}
+              </div>
+            </Tab>
 
-        {/* Panel content */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {activeTab === "agents" && (
-            <div>
-              <p className="text-xs text-gray-500 mb-3">
-                A2A Agent Cards — each agent advertises its skills and capabilities:
-              </p>
-              {agents.length > 0 ? (
-                <AgentCards agents={agents} activeAgent={loading ? activeAgent : undefined} />
-              ) : (
-                <div className="text-center py-8 text-gray-400 text-sm">
-                  Connect to the Java backend to load agent cards
-                </div>
-              )}
-            </div>
-          )}
+            <Tab name={`🔎 Trace${traceCount > 0 ? ` (${traceCount})` : ""}`}>
+              <div className="p-4 pt-3">
+                <Description className="mb-3 block">
+                  Tool invocations logged to MongoDB{" "}
+                  <InlineCode>tool_invocations</InlineCode> collection:
+                </Description>
+                <TracePanel invocations={trace?.toolInvocations ?? []} />
+              </div>
+            </Tab>
 
-          {activeTab === "trace" && (
-            <div>
-              <p className="text-xs text-gray-500 mb-3">
-                Tool invocations logged to MongoDB <code className="bg-gray-100 px-1 rounded">tool_invocations</code> collection:
-              </p>
-              <TracePanel invocations={trace?.toolInvocations ?? []} />
-            </div>
-          )}
-
-          {activeTab === "mongo" && (
-            <div>
-              <p className="text-xs text-gray-500 mb-3">
-                Live documents from MongoDB Atlas <code className="bg-gray-100 px-1 rounded">retail_advisor_demo</code> database:
-              </p>
-              <MongoDocViewer
-                session={trace?.session ?? {}}
-                agentState={trace?.agentState ?? {}}
-              />
-              {trace && (
-                <div className="mt-4">
-                  <div className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
-                    tool_invocations ({trace.toolInvocations.length})
+            <Tab name="🍃 MongoDB">
+              <div className="p-4 pt-3">
+                <Description className="mb-3 block">
+                  Live documents from MongoDB Atlas{" "}
+                  <InlineCode>retail_advisor_demo</InlineCode> database:
+                </Description>
+                <MongoDocViewer
+                  session={trace?.session ?? {}}
+                  agentState={trace?.agentState ?? {}}
+                />
+                {trace && (
+                  <div className="mt-4">
+                    <div className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+                      tool_invocations ({trace.toolInvocations.length})
+                    </div>
+                    <div className="max-h-64 overflow-auto">
+                      <Code language="json" darkMode>
+                        {JSON.stringify(trace.toolInvocations, null, 2)}
+                      </Code>
+                    </div>
                   </div>
-                  <pre className="text-xs bg-gray-900 text-green-400 rounded-lg p-3 overflow-auto max-h-64 font-mono">
-                    {JSON.stringify(trace.toolInvocations, null, 2)}
-                  </pre>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            </Tab>
+          </Tabs>
           )}
         </div>
 
