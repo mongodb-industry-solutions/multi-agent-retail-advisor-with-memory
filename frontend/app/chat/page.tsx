@@ -18,6 +18,11 @@ import TextArea from "@leafygreen-ui/text-area";
 import { Tabs, Tab } from "@leafygreen-ui/tabs";
 import { Code } from "@leafygreen-ui/code";
 import { Description, InlineCode } from "@leafygreen-ui/typography";
+import { Pipeline, Stage } from "@leafygreen-ui/pipeline";
+import { Spinner } from "@leafygreen-ui/loading-indicator";
+import { Avatar } from "@leafygreen-ui/avatar";
+import { BasicEmptyState } from "@leafygreen-ui/empty-state";
+import { useToast } from "@leafygreen-ui/toast";
 
 interface Message {
   role: "user" | "assistant";
@@ -54,6 +59,7 @@ export default function ChatPage() {
   const [activeAgent, setActiveAgent] = useState<string | undefined>();
   const [mounted, setMounted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { pushToast } = useToast();
 
   const activeTabIndex = TAB_ORDER.indexOf(activeTab);
   const traceCount = trace?.toolInvocations.length ?? 0;
@@ -98,13 +104,11 @@ export default function ChatPage() {
       const traceData = await getTrace(response.sessionId);
       setTrace(traceData);
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "⚠️ Failed to reach the backend. Make sure the Java server is running on port 8080.",
-        },
-      ]);
+      pushToast({
+        title: "Backend unreachable",
+        description: "Make sure the Java server is running on port 8080.",
+        variant: "important",
+      });
     } finally {
       setLoading(false);
       setActiveAgent(undefined);
@@ -183,8 +187,8 @@ export default function ChatPage() {
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               {msg.role === "assistant" && (
-                <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center text-sm mr-2 shrink-0 mt-0.5">
-                  🤖
+                <div className="mr-2 shrink-0 mt-0.5">
+                  <Avatar format="mongodb" sizeOverride={28} />
                 </div>
               )}
               <div
@@ -203,26 +207,19 @@ export default function ChatPage() {
                 )}
               </div>
               {msg.role === "user" && (
-                <div className="w-7 h-7 rounded-full bg-green-600 flex items-center justify-center text-xs text-white ml-2 shrink-0 mt-0.5 font-medium">
-                  {selectedUser.name[0]}
+                <div className="ml-2 shrink-0 mt-0.5">
+                  <Avatar format="text" text={selectedUser.name} sizeOverride={28} />
                 </div>
               )}
             </div>
           ))}
           {loading && (
-            <div className="flex justify-start">
-              <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center text-sm mr-2 shrink-0">
-                🤖
+            <div className="flex justify-start items-center gap-2">
+              <div className="shrink-0">
+                <Avatar format="mongodb" sizeOverride={28} />
               </div>
-              <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-4 py-2.5">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span className="inline-flex gap-1">
-                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
-                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
-                  </span>
-                  <span>Agents working…</span>
-                </div>
+              <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-4 py-3">
+                <Spinner size={16} description="Agents working…" direction="horizontal" />
               </div>
             </div>
           )}
@@ -276,15 +273,28 @@ export default function ChatPage() {
           >
             <Tab name="🤖 Agents">
               <div className="p-4 pt-3">
+                <Description className="mb-2 block text-xs uppercase tracking-wide text-gray-500">
+                  Orchestration flow
+                </Description>
+                <div className="mb-4">
+                  <Pipeline size="small">
+                    <Stage>User Query</Stage>
+                    <Stage>PlannerAgent</Stage>
+                    <Stage>ProfileAgent</Stage>
+                    <Stage>ProductAgent</Stage>
+                    <Stage>Response</Stage>
+                  </Pipeline>
+                </div>
                 <Description className="mb-3 block">
                   A2A Agent Cards — each agent advertises its skills and capabilities:
                 </Description>
                 {agents.length > 0 ? (
                   <AgentCards agents={agents} activeAgent={loading ? activeAgent : undefined} />
                 ) : (
-                  <Description className="text-center py-8 block">
-                    Connect to the Java backend to load agent cards
-                  </Description>
+                  <BasicEmptyState
+                    title="No agents loaded"
+                    description="Connect to the Java backend to load agent cards"
+                  />
                 )}
               </div>
             </Tab>

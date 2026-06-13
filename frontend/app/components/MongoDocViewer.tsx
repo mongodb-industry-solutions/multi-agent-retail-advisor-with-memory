@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Button from "@leafygreen-ui/button";
 import { Code } from "@leafygreen-ui/code";
-import { Description, InlineCode } from "@leafygreen-ui/typography";
+import { InlineCode } from "@leafygreen-ui/typography";
+import { BasicEmptyState } from "@leafygreen-ui/empty-state";
 
 interface Props {
   session: Record<string, unknown>;
@@ -25,9 +26,10 @@ export function MongoDocViewer({ session, agentState }: Props) {
 
   if (!session || Object.keys(session).length === 0) {
     return (
-      <Description className="text-center py-6 block">
-        MongoDB documents will appear here after a response
-      </Description>
+      <BasicEmptyState
+        title="No documents yet"
+        description="MongoDB documents will appear here after a response"
+      />
     );
   }
 
