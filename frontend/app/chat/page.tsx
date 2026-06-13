@@ -19,7 +19,6 @@ import Button from "@leafygreen-ui/button";
 import { Select, Option } from "@leafygreen-ui/select";
 import TextArea from "@leafygreen-ui/text-area";
 import { Tabs, Tab } from "@leafygreen-ui/tabs";
-import { Code } from "@leafygreen-ui/code";
 import { Description, InlineCode } from "@leafygreen-ui/typography";
 import { Pipeline, Stage } from "@leafygreen-ui/pipeline";
 import { Spinner } from "@leafygreen-ui/loading-indicator";
@@ -343,18 +342,6 @@ export default function ChatPage() {
                   user={profile?.user ?? {}}
                   memory={profile?.memory ?? {}}
                 />
-                {trace && (
-                  <div className="mt-4">
-                    <div className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
-                      tool_invocations ({trace.toolInvocations.length})
-                    </div>
-                    <div className="max-h-64 overflow-auto">
-                      <Code language="json" darkMode>
-                        {JSON.stringify(trace.toolInvocations, null, 2)}
-                      </Code>
-                    </div>
-                  </div>
-                )}
               </div>
             </Tab>
           </Tabs>

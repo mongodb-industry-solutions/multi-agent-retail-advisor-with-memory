@@ -67,7 +67,7 @@ export function MongoDocViewer({ session, agentState, user = {}, memory = {} }: 
         <div className="absolute top-2 right-2 z-10">
           <InlineCode>MongoDB Atlas</InlineCode>
         </div>
-        <div className="max-h-56 overflow-auto">
+        <div className="overflow-auto">
           <Code language="json" darkMode>
             {JSON.stringify(docs[activeDoc], null, 2)}
           </Code>
