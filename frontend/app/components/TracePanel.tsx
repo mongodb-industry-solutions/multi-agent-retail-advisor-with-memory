@@ -6,7 +6,7 @@ import Badge from "@leafygreen-ui/badge";
 import Banner from "@leafygreen-ui/banner";
 import { Code } from "@leafygreen-ui/code";
 import Icon from "@leafygreen-ui/icon";
-import { Body } from "@leafygreen-ui/typography";
+import { Body, Description } from "@leafygreen-ui/typography";
 import { BasicEmptyState } from "@leafygreen-ui/empty-state";
 
 interface Props {
