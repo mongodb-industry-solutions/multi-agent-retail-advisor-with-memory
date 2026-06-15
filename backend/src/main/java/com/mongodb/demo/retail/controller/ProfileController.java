@@ -8,6 +8,7 @@ import com.mongodb.demo.retail.mongodb.MongoCollections;
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,5 +39,11 @@ public class ProfileController {
         Map<String, Object> memory = memoryDoc != null ? memoryDoc : Collections.emptyMap();
 
         return ResponseEntity.ok(new ProfileResponse(user, memory));
+    }
+
+    @DeleteMapping("/profile/{userId}/memory")
+    public ResponseEntity<Void> resetMemory(@PathVariable String userId) {
+        userMemory.deleteOne(Filters.eq("user_id", userId));
+        return ResponseEntity.noContent().build();
     }
 }

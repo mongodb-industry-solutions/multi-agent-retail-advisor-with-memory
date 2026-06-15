@@ -174,8 +174,12 @@ export default function ChatPage() {
             </Select>
             <ProfilePopover
               userName={selectedUser.name}
+              userId={selectedUser.id}
               profile={profile}
               loading={profileLoading}
+              onMemoryReset={() =>
+                getProfile(selectedUser.id).then(setProfile).catch(() => {})
+              }
             />
             <Button size="small" variant="default" onClick={newSession} className="whitespace-nowrap">
               New chat

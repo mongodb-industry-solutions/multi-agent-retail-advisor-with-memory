@@ -74,3 +74,8 @@ export async function getProfile(userId: string): Promise<ProfileResponse> {
   if (!res.ok) throw new Error(`Profile fetch failed: ${res.status}`);
   return res.json();
 }
+
+export async function resetMemory(userId: string): Promise<void> {
+  const res = await fetch(`/api/profile/${userId}/memory`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`Reset failed: ${res.status}`);
+}
