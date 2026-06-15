@@ -15,6 +15,7 @@
     "@leafygreen-ui/card": "^13.3.1",
     "@leafygreen-ui/code": "^20.2.7",
     "@leafygreen-ui/copyable": "^12.0.3",
+    "@leafygreen-ui/date-picker": "^4.1.2",
     "@leafygreen-ui/empty-state": "^3.0.11",
     "@leafygreen-ui/expandable-card": "^5.2.4",
     "@leafygreen-ui/icon": "^14.9.0",
@@ -29,7 +30,8 @@
     "@leafygreen-ui/typography": "^22.2.4",
     "next": "16.2.4",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

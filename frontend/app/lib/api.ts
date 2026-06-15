@@ -79,3 +79,23 @@ export async function resetMemory(userId: string): Promise<void> {
   const res = await fetch(`/api/profile/${userId}/memory`, { method: "DELETE" });
   if (!res.ok) throw new Error(`Reset failed: ${res.status}`);
 }
+
+export interface SessionSummary {
+  sessionId: string;
+  preview: string;
+  messageCount: number;
+  createdAt: string;
+  updatedAt: string;
+  starred: boolean;
+}
+
+export async function listSessions(userId: string): Promise<SessionSummary[]> {
+  const res = await fetch(`/api/sessions/user/${userId}`);
+  if (!res.ok) throw new Error(`Sessions fetch failed: ${res.status}`);
+  return res.json();
+}
+
+export async function setSessionStar(sessionId: string, starred: boolean): Promise<void> {
+  const res = await fetch(`/api/sessions/${sessionId}/star?starred=${starred}`, { method: "PUT" });
+  if (!res.ok) throw new Error(`Star update failed: ${res.status}`);
+}

@@ -6,15 +6,18 @@ import {
   getTrace,
   getAgents,
   getProfile,
+  listSessions,
   ChatResponse,
   TraceResponse,
   AgentCard,
   ProfileResponse,
+  SessionSummary,
 } from "@/app/lib/api";
 import { AgentCards } from "@/app/components/AgentCards";
 import { TracePanel } from "@/app/components/TracePanel";
 import { MongoDocViewer } from "@/app/components/MongoDocViewer";
 import { ProfilePopover } from "@/app/components/ProfilePopover";
+import { SessionPickerPopover } from "@/app/components/SessionPickerPopover";
 import Button from "@leafygreen-ui/button";
 import { Select, Option } from "@leafygreen-ui/select";
 import TextArea from "@leafygreen-ui/text-area";
@@ -25,6 +28,7 @@ import { Spinner } from "@leafygreen-ui/loading-indicator";
 import { Avatar } from "@leafygreen-ui/avatar";
 import { BasicEmptyState } from "@leafygreen-ui/empty-state";
 import { useToast } from "@leafygreen-ui/toast";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   role: "user" | "assistant";
@@ -62,6 +66,7 @@ export default function ChatPage() {
   const [mounted, setMounted] = useState(false);
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [latestSession, setLatestSession] = useState<SessionSummary | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { pushToast } = useToast();
 
@@ -89,6 +94,7 @@ export default function ChatPage() {
     if (!input.trim() || loading) return;
 
     const userMessage = input.trim();
+    const isNewSession = !sessionId;
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setLoading(true);
@@ -112,6 +118,18 @@ export default function ChatPage() {
           toolCallCount: response.toolCallCount,
         },
       ]);
+
+      if (isNewSession) {
+        const now = new Date().toISOString();
+        setLatestSession({
+          sessionId: response.sessionId,
+          preview: userMessage,
+          messageCount: 2,
+          createdAt: now,
+          updatedAt: now,
+          starred: false,
+        });
+      }
 
       const [traceData, freshProfile] = await Promise.all([
         getTrace(response.sessionId),
@@ -143,6 +161,20 @@ export default function ChatPage() {
     setSessionId(null);
     setTrace(null);
     setInput("");
+    setLatestSession(null);
+  }
+
+  async function handleResumeSession(summary: SessionSummary) {
+    try {
+      const traceData = await getTrace(summary.sessionId);
+      const raw = (traceData.session.messages as Array<{ role: string; content: string }>) ?? [];
+      setMessages(raw.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })));
+      setSessionId(summary.sessionId);
+      setTrace(traceData);
+      setActiveTab("trace");
+    } catch {
+      pushToast({ title: "Could not load session", variant: "important" });
+    }
   }
 
   return (
@@ -161,8 +193,12 @@ export default function ChatPage() {
               size="small"
               aria-label="Select user"
               value={selectedUser.id}
+              allowDeselect={false}
               onChange={(value) => {
-                setSelectedUser(USERS.find((u) => u.id === value)!);
+                if (!value) return;
+                const user = USERS.find((u) => u.id === value);
+                if (!user) return;
+                setSelectedUser(user);
                 newSession();
               }}
             >
@@ -180,6 +216,11 @@ export default function ChatPage() {
               onMemoryReset={() =>
                 getProfile(selectedUser.id).then(setProfile).catch(() => {})
               }
+            />
+            <SessionPickerPopover
+              userId={selectedUser.id}
+              onResume={handleResumeSession}
+              latestSession={latestSession}
             />
             <Button size="small" variant="default" onClick={newSession} className="whitespace-nowrap">
               New chat
@@ -223,7 +264,35 @@ export default function ChatPage() {
                     : "bg-gray-100 text-gray-800 rounded-bl-sm"
                 }`}
               >
-                <div className="whitespace-pre-wrap">{msg.content}</div>
+                {msg.role === "user" ? (
+                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                ) : (
+                  <ReactMarkdown
+                    components={{
+                      p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-0.5">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
+                      li: ({ children }) => <li className="leading-snug">{children}</li>,
+                      strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                      em: ({ children }) => <em className="italic">{children}</em>,
+                      h1: ({ children }) => <h1 className="font-bold text-base mb-1 mt-2">{children}</h1>,
+                      h2: ({ children }) => <h2 className="font-semibold mb-1 mt-2">{children}</h2>,
+                      h3: ({ children }) => <h3 className="font-semibold mb-1 mt-1">{children}</h3>,
+                      code: ({ className, children }) =>
+                        className?.includes("language-") ? (
+                          <code className="block bg-black/10 rounded px-2 py-1.5 font-mono text-xs mb-2 whitespace-pre-wrap">{children}</code>
+                        ) : (
+                          <code className="bg-black/10 rounded px-1 py-0.5 font-mono text-xs">{children}</code>
+                        ),
+                      pre: ({ children }) => <pre className="mb-2 overflow-x-auto">{children}</pre>,
+                      blockquote: ({ children }) => <blockquote className="border-l-2 border-gray-400 pl-3 italic mb-2 text-gray-600">{children}</blockquote>,
+                      hr: () => <hr className="border-gray-300 my-2" />,
+                      a: ({ href, children }) => <a href={href} className="underline text-green-700 hover:text-green-800" target="_blank" rel="noopener noreferrer">{children}</a>,
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
+                )}
                 {msg.toolCallCount !== undefined && (
                   <div className="mt-2 text-xs opacity-60">
                     {msg.toolCallCount} tool call{msg.toolCallCount !== 1 ? "s" : ""} • session:{" "}
