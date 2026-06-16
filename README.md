@@ -21,7 +21,7 @@ The LLM behind the agents is Anthropic (model-agnostic architecture — swap `AN
 | LLM | Anthropic via Azure API Management gateway |
 | Embeddings | Atlas Vector Search Auto-Embeddings (`voyage-3-large`, server-side) |
 | Database | MongoDB Atlas (Vector Search + full-text Search) |
-| Frontend | Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 |
+| Frontend | Next.js 16 · React 18 · TypeScript · Tailwind CSS 4 |
 | Async runtime | RxJava 3 (ADK agent execution) |
 
 ---

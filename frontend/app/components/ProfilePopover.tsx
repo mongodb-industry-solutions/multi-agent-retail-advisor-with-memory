@@ -41,6 +41,8 @@ export function ProfilePopover({ userName, userId, profile, loading, onMemoryRes
 
   // Close popover when profile changes (user switched)
   useEffect(() => { setOpen(false); setConfirming(false); }, [profile]);
+  // Reset confirming when popover closes (outside click, button toggle)
+  useEffect(() => { if (!open) setConfirming(false); }, [open]);
 
   async function handleConfirmReset() {
     setResetting(true);
@@ -64,6 +66,7 @@ export function ProfilePopover({ userName, userId, profile, loading, onMemoryRes
   return (
     <div className="relative">
       <button
+        type="button"
         ref={triggerRef}
         onClick={() => setOpen((v) => !v)}
         className="rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"

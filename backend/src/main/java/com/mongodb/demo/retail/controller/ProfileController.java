@@ -33,12 +33,18 @@ public class ProfileController {
     @GetMapping("/profile/{userId}")
     public ResponseEntity<ProfileResponse> getProfile(@PathVariable String userId) {
         Document userDoc = users.find(Filters.eq("_id", userId)).first();
-        Map<String, Object> user = userDoc != null ? userDoc : Collections.emptyMap();
+        Map<String, Object> user = sanitize(userDoc);
 
         Document memoryDoc = userMemory.find(Filters.eq("user_id", userId)).first();
-        Map<String, Object> memory = memoryDoc != null ? memoryDoc : Collections.emptyMap();
+        Map<String, Object> memory = sanitize(memoryDoc);
 
         return ResponseEntity.ok(new ProfileResponse(user, memory));
+    }
+
+    private Map<String, Object> sanitize(Document doc) {
+        if (doc == null) return Collections.emptyMap();
+        doc.remove("_id");
+        return doc;
     }
 
     @DeleteMapping("/profile/{userId}/memory")

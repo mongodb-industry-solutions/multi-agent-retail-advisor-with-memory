@@ -6,7 +6,6 @@ import {
   getTrace,
   getAgents,
   getProfile,
-  listSessions,
   ChatResponse,
   TraceResponse,
   AgentCard,
@@ -78,12 +77,14 @@ export default function ChatPage() {
     getAgents().then(setAgents).catch(() => {});
   }, []);
   useEffect(() => {
+    const controller = new AbortController();
     setProfile(null);
     setProfileLoading(true);
-    getProfile(selectedUser.id)
+    getProfile(selectedUser.id, controller.signal)
       .then(setProfile)
       .catch(() => {})
       .finally(() => setProfileLoading(false));
+    return () => controller.abort();
   }, [selectedUser.id]);
 
   useEffect(() => {
@@ -131,12 +132,12 @@ export default function ChatPage() {
         });
       }
 
-      const [traceData, freshProfile] = await Promise.all([
+      const [traceResult, profileResult] = await Promise.allSettled([
         getTrace(response.sessionId),
         getProfile(selectedUser.id),
       ]);
-      setTrace(traceData);
-      setProfile(freshProfile);
+      if (traceResult.status === "fulfilled") setTrace(traceResult.value);
+      if (profileResult.status === "fulfilled") setProfile(profileResult.value);
     } catch {
       pushToast({
         title: "Backend unreachable",
@@ -194,6 +195,7 @@ export default function ChatPage() {
               aria-label="Select user"
               value={selectedUser.id}
               allowDeselect={false}
+              disabled={loading}
               onChange={(value) => {
                 if (!value) return;
                 const user = USERS.find((u) => u.id === value);
@@ -222,7 +224,7 @@ export default function ChatPage() {
               onResume={handleResumeSession}
               latestSession={latestSession}
             />
-            <Button size="small" variant="default" onClick={newSession} className="whitespace-nowrap">
+            <Button size="small" variant="default" onClick={newSession} disabled={loading} className="whitespace-nowrap">
               New chat
             </Button>
           </div>
