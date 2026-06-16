@@ -435,7 +435,7 @@ export default function ChatPage() {
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-blue-500" />
-                <span>Voyage AI</span>
+                <span>Atlas Auto-Embeddings</span>
               </span>
             </div>
           </div>
