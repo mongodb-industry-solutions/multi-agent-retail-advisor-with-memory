@@ -58,7 +58,7 @@ When the ProductAgent searches the catalog, it runs two possible paths:
 The user's query is passed as plain text to `$vectorSearch`. Atlas handles vectorization server-side using `voyage-3-large` — no embedding API calls from the application. Structured filters (price, size, waterproof, eco-friendly, category) are pushed inside the `$vectorSearch` stage, so MongoDB filters at the index level before computing similarity. This means "sustainable hiking footwear" finds "eco-conscious trail runner" even without keyword overlap.
 
 **Fallback — Atlas full-text Search:**
-If vector search fails (index not ready, cluster tier too low), the tool automatically retries with `$search` using keyword matching across `name`, `description`, `brand`, and `search_text` fields. The demo stays functional either way; the Trace panel reveals which path was taken.
+If vector search fails (index not ready, cluster tier too low), the tool automatically retries with `$search` using keyword matching across `name`, `description`, and `brand` fields. The demo stays functional either way; the Trace panel reveals which path was taken.
 
 Both indexes live in the same Atlas cluster alongside all agent memory and session data — no separate vector database or search infrastructure needed.
 

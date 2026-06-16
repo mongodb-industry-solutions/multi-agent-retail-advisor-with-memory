@@ -148,7 +148,10 @@ public class SearchProductsTool extends BaseTool {
 
         List<Bson> pipeline = new ArrayList<>();
         pipeline.add(new Document("$vectorSearch", vectorSearchDoc));
-        pipeline.add(Aggregates.project(Projections.metaVectorSearchScore("score")));
+        pipeline.add(Aggregates.project(Projections.fields(
+                Projections.excludeId(),
+                Projections.metaVectorSearchScore("score")
+        )));
 
         return executeAndSerialize(pipeline);
     }
