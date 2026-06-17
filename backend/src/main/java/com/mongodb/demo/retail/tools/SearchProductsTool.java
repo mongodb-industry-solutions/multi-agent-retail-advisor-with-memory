@@ -143,14 +143,18 @@ public class SearchProductsTool extends BaseTool {
                 .append("limit", 5L);
 
         if (!preFilters.isEmpty()) {
-            vectorSearchDoc.append("filter", Filters.and(preFilters));
+            vectorSearchDoc.append("filter",
+                    Filters.and(preFilters).toBsonDocument(Document.class, products.getCodecRegistry()));
         }
 
         List<Bson> pipeline = new ArrayList<>();
         pipeline.add(new Document("$vectorSearch", vectorSearchDoc));
+        // $addFields preserves all existing fields; $project then strips _id and search_text
+        pipeline.add(new Document("$addFields",
+                new Document("score", new Document("$meta", "vectorSearchScore"))));
         pipeline.add(Aggregates.project(Projections.fields(
                 Projections.excludeId(),
-                Projections.metaVectorSearchScore("score")
+                Projections.exclude("search_text")
         )));
 
         return executeAndSerialize(pipeline);
@@ -175,6 +179,10 @@ public class SearchProductsTool extends BaseTool {
             pipeline.add(Aggregates.match(Filters.and(filters)));
         }
         pipeline.add(Aggregates.limit(5));
+        pipeline.add(Aggregates.project(Projections.fields(
+                Projections.excludeId(),
+                Projections.exclude("search_text")
+        )));
         return executeAndSerialize(pipeline);
     }
 
