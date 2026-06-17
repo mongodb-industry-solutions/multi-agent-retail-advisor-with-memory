@@ -64,8 +64,8 @@ public class SessionsController {
                             sessionId,
                             preview,
                             messageCount,
-                            createdAt != null ? createdAt.toString() : "",
-                            updatedAt != null ? updatedAt.toString() : "",
+                            createdAt instanceof java.util.Date d ? d.toInstant().toString() : "",
+                            updatedAt instanceof java.util.Date d ? d.toInstant().toString() : "",
                             starred
                     ));
                 });

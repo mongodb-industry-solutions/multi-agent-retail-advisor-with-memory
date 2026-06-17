@@ -69,14 +69,14 @@ export interface ProfileResponse {
   memory: Record<string, unknown>;
 }
 
-export async function getProfile(userId: string): Promise<ProfileResponse> {
-  const res = await fetch(`/api/profile/${userId}`);
+export async function getProfile(userId: string, signal?: AbortSignal): Promise<ProfileResponse> {
+  const res = await fetch(`/api/profile/${encodeURIComponent(userId)}`, { signal });
   if (!res.ok) throw new Error(`Profile fetch failed: ${res.status}`);
   return res.json();
 }
 
 export async function resetMemory(userId: string): Promise<void> {
-  const res = await fetch(`/api/profile/${userId}/memory`, { method: "DELETE" });
+  const res = await fetch(`/api/profile/${encodeURIComponent(userId)}/memory`, { method: "DELETE" });
   if (!res.ok) throw new Error(`Reset failed: ${res.status}`);
 }
 
@@ -90,12 +90,12 @@ export interface SessionSummary {
 }
 
 export async function listSessions(userId: string): Promise<SessionSummary[]> {
-  const res = await fetch(`/api/sessions/user/${userId}`);
+  const res = await fetch(`/api/sessions/user/${encodeURIComponent(userId)}`);
   if (!res.ok) throw new Error(`Sessions fetch failed: ${res.status}`);
   return res.json();
 }
 
 export async function setSessionStar(sessionId: string, starred: boolean): Promise<void> {
-  const res = await fetch(`/api/sessions/${sessionId}/star?starred=${starred}`, { method: "PUT" });
+  const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/star?starred=${starred}`, { method: "PUT" });
   if (!res.ok) throw new Error(`Star update failed: ${res.status}`);
 }
