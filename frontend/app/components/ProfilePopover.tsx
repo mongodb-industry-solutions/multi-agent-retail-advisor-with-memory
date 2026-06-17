@@ -1,22 +1,27 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ProfileResponse } from "@/app/lib/api";
+import { ProfileResponse, resetMemory } from "@/app/lib/api";
 import { Popover } from "@leafygreen-ui/popover";
 import Card from "@leafygreen-ui/card";
 import Badge from "@leafygreen-ui/badge";
+import Button from "@leafygreen-ui/button";
 import { Body, Description, InlineCode } from "@leafygreen-ui/typography";
 import { Avatar } from "@leafygreen-ui/avatar";
 import { Spinner } from "@leafygreen-ui/loading-indicator";
 
 interface Props {
   userName: string;
+  userId: string;
   profile: ProfileResponse | null;
   loading: boolean;
+  onMemoryReset: () => void;
 }
 
-export function ProfilePopover({ userName, profile, loading }: Props) {
+export function ProfilePopover({ userName, userId, profile, loading, onMemoryReset }: Props) {
   const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -35,7 +40,20 @@ export function ProfilePopover({ userName, profile, loading }: Props) {
   }, [open]);
 
   // Close popover when profile changes (user switched)
-  useEffect(() => { setOpen(false); }, [profile]);
+  useEffect(() => { setOpen(false); setConfirming(false); }, [profile]);
+  // Reset confirming when popover closes (outside click, button toggle)
+  useEffect(() => { if (!open) setConfirming(false); }, [open]);
+
+  async function handleConfirmReset() {
+    setResetting(true);
+    try {
+      await resetMemory(userId);
+      onMemoryReset();
+    } finally {
+      setResetting(false);
+      setConfirming(false);
+    }
+  }
 
   const user = profile?.user ?? {};
   const memory = profile?.memory ?? {};
@@ -48,6 +66,7 @@ export function ProfilePopover({ userName, profile, loading }: Props) {
   return (
     <div className="relative">
       <button
+        type="button"
         ref={triggerRef}
         onClick={() => setOpen((v) => !v)}
         className="rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
@@ -155,6 +174,43 @@ export function ProfilePopover({ userName, profile, loading }: Props) {
                   <Description className="font-mono text-gray-400">
                     <InlineCode>users</InlineCode> + <InlineCode>user_memory</InlineCode>
                   </Description>
+                </div>
+
+                {/* Reset memory */}
+                <div className="border-t border-gray-100 pt-2">
+                  {!confirming ? (
+                    <Button
+                      size="small"
+                      variant="danger"
+                      onClick={() => setConfirming(true)}
+                    >
+                      Reset memory
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <Description className="block text-xs text-gray-600">
+                        This will delete all learned facts.
+                      </Description>
+                      <div className="flex gap-2">
+                        <Button
+                          size="small"
+                          variant="danger"
+                          onClick={handleConfirmReset}
+                          disabled={resetting}
+                        >
+                          {resetting ? "Deleting…" : "Confirm reset"}
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="default"
+                          onClick={() => setConfirming(false)}
+                          disabled={resetting}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

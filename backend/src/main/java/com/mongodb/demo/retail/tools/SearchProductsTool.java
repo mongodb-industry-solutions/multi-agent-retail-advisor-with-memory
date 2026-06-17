@@ -11,12 +11,9 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
-import com.mongodb.client.model.search.SearchPath;
-import com.mongodb.client.model.search.VectorSearchOptions;
 import com.mongodb.demo.retail.config.AgentContext;
 import com.mongodb.demo.retail.mongodb.MongoCollections;
 import com.mongodb.demo.retail.mongodb.ToolInvocationRepository;
-import com.mongodb.demo.retail.service.EmbeddingService;
 import io.reactivex.rxjava3.core.Single;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -36,19 +33,16 @@ public class SearchProductsTool extends BaseTool {
     private static final Logger log = LoggerFactory.getLogger(SearchProductsTool.class);
 
     private final MongoCollection<Document> products;
-    private final EmbeddingService embeddingService;
     private final ToolInvocationRepository toolInvocationRepo;
     private final ObjectMapper objectMapper;
 
     public SearchProductsTool(MongoClient mongoClient,
-                              EmbeddingService embeddingService,
                               ToolInvocationRepository toolInvocationRepo,
                               @Value("${mongodb.database}") String database) {
         super("search_products",
               "Search the product catalog using semantic vector search combined with structured filters. " +
               "Returns the most relevant products matching the query and filters.");
         this.products = mongoClient.getDatabase(database).getCollection(MongoCollections.PRODUCTS);
-        this.embeddingService = embeddingService;
         this.toolInvocationRepo = toolInvocationRepo;
         this.objectMapper = new ObjectMapper();
     }
@@ -87,7 +81,7 @@ public class SearchProductsTool extends BaseTool {
                         .build(),
                     "category", Schema.builder()
                         .type(new Type(Type.Known.STRING))
-                        .description("Product category: hiking_boots, rain_jackets, trekking_poles, backpacks, base_layers (optional)")
+                        .description("Product category slug (optional): rain_jackets, fleece_jackets, down_jackets, softshell_jackets, hiking_pants, trail_shorts, base_layers, hiking_boots, trail_shoes, approach_shoes, sandals, backpacks, trekking_poles, headlamps, socks, sleeping_bags, gloves_headwear")
                         .nullable(true)
                         .build()
                 ))
@@ -139,28 +133,28 @@ public class SearchProductsTool extends BaseTool {
 
     private String vectorSearch(String query, Double maxPrice, String size,
                                 Boolean waterproof, Boolean ecoFriendly, String category) {
-        List<Float> queryVectorFloat = embeddingService.embedQuery(query);
-        List<Double> queryVector = queryVectorFloat.stream().map(Float::doubleValue).toList();
-
         List<Bson> preFilters = buildFilters(maxPrice, size, waterproof, ecoFriendly, category);
-        Bson preFilter = preFilters.isEmpty() ? null : Filters.and(preFilters);
 
-        VectorSearchOptions options = VectorSearchOptions.approximateVectorSearchOptions(200L);
-        if (preFilter != null) {
-            options = options.filter(preFilter);
+        Document vectorSearchDoc = new Document()
+                .append("index", MongoCollections.VECTOR_INDEX_NAME)
+                .append("path", "search_text")
+                .append("query", query)
+                .append("numCandidates", 200)
+                .append("limit", 5L);
+
+        if (!preFilters.isEmpty()) {
+            vectorSearchDoc.append("filter",
+                    Filters.and(preFilters).toBsonDocument(Document.class, products.getCodecRegistry()));
         }
 
         List<Bson> pipeline = new ArrayList<>();
-        pipeline.add(Aggregates.vectorSearch(
-                SearchPath.fieldPath("embedding"),
-                queryVector,
-                MongoCollections.VECTOR_INDEX_NAME,
-                5L,
-                options
-        ));
+        pipeline.add(new Document("$vectorSearch", vectorSearchDoc));
+        // $addFields preserves all existing fields; $project then strips _id and search_text
+        pipeline.add(new Document("$addFields",
+                new Document("score", new Document("$meta", "vectorSearchScore"))));
         pipeline.add(Aggregates.project(Projections.fields(
-                Projections.exclude("embedding"),
-                Projections.metaVectorSearchScore("score")
+                Projections.excludeId(),
+                Projections.exclude("search_text")
         )));
 
         return executeAndSerialize(pipeline);
@@ -185,7 +179,10 @@ public class SearchProductsTool extends BaseTool {
             pipeline.add(Aggregates.match(Filters.and(filters)));
         }
         pipeline.add(Aggregates.limit(5));
-        pipeline.add(Aggregates.project(Projections.exclude("embedding")));
+        pipeline.add(Aggregates.project(Projections.fields(
+                Projections.excludeId(),
+                Projections.exclude("search_text")
+        )));
         return executeAndSerialize(pipeline);
     }
 

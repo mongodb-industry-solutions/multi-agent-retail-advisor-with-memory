@@ -23,7 +23,7 @@ const LABELS: Record<DocKey, string> = {
 };
 
 export function MongoDocViewer({ session, agentState, user = {}, memory = {} }: Props) {
-  const [activeDoc, setActiveDoc] = useState<DocKey>("user");
+  const [activeDoc, setActiveDoc] = useState<DocKey>("session");
 
   const docs: Record<DocKey, Record<string, unknown>> = {
     session,
