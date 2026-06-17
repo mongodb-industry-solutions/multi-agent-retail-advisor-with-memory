@@ -3,10 +3,7 @@
 ## Prerequisites
 
 - Docker Desktop running
-- MongoDB Atlas cluster with:
-  - A **Vector Search index** named `product_vector_index` on `products.embedding` (2048 dims, cosine)
-  - A **Search index** named `product_text_index` on `products` (fields: `name`, `description`, `brand`, `category`)
-- A **Voyage AI API key** (from Atlas AI Models section) for generating embeddings
+- MongoDB Atlas cluster **M10 or higher** (required for Auto-Embeddings vector search)
 - Access to an **Anthropic-compatible LLM endpoint** (API key + base URL)
 
 ---
@@ -28,10 +25,6 @@ MONGODB_DATABASE=<your-database-name>
 LLM_API_KEY=<your-llm-api-key>
 LLM_BASE_URL=<your-llm-base-url>
 ANTHROPIC_MODEL=<your-model-id>
-
-# Voyage AI embeddings
-VOYAGE_API_KEY=<your-voyage-api-key>
-VOYAGE_MODEL=<your-voyage-model>
 ```
 
 ---
@@ -43,7 +36,7 @@ pip install -r helpers/requirements.txt
 python helpers/seed.py
 ```
 
-This inserts 20 outdoor products + 3 sample users into MongoDB, generates Voyage AI embeddings for each product, and creates both Atlas search indexes. Only needed once — all data lives in MongoDB afterwards.
+This inserts 135 outdoor apparel products + sample users into MongoDB and creates both Atlas search indexes. Atlas auto-embeds the `search_text` field in the background (~1–2 min). Only needed once — all data lives in MongoDB afterwards. Use `--force` to drop and re-seed the products collection.
 
 ---
 

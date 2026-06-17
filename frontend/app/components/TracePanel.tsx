@@ -2,15 +2,21 @@
 
 import { useState } from "react";
 import { ToolInvocation } from "@/app/lib/api";
+import Badge from "@leafygreen-ui/badge";
+import Banner from "@leafygreen-ui/banner";
+import { Code } from "@leafygreen-ui/code";
+import Icon from "@leafygreen-ui/icon";
+import { Body, Description } from "@leafygreen-ui/typography";
+import { BasicEmptyState } from "@leafygreen-ui/empty-state";
 
 interface Props {
   invocations: ToolInvocation[];
 }
 
-const AGENT_COLOR: Record<string, string> = {
-  PlannerAgent: "text-green-700 bg-green-100",
-  ProductAgent: "text-blue-700 bg-blue-100",
-  ProfileAgent: "text-purple-700 bg-purple-100",
+const AGENT_BADGE_VARIANT: Record<string, "green" | "blue" | "lightgray" | "darkgray"> = {
+  PlannerAgent: "green",
+  ProductAgent: "blue",
+  ProfileAgent: "lightgray",
 };
 
 const TOOL_ICON: Record<string, string> = {
@@ -27,9 +33,10 @@ export function TracePanel({ invocations }: Props) {
 
   if (invocations.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-400 text-sm">
-        Tool invocations will appear here after a response
-      </div>
+      <BasicEmptyState
+        title="No invocations yet"
+        description="Tool invocations will appear here after a response"
+      />
     );
   }
 
@@ -37,51 +44,49 @@ export function TracePanel({ invocations }: Props) {
     <div className="space-y-2">
       {invocations.map((inv, idx) => {
         const isExpanded = expanded === idx;
-        const agentColorClass = AGENT_COLOR[inv.agent_name] ?? "text-gray-700 bg-gray-100";
+        const badgeVariant = AGENT_BADGE_VARIANT[inv.agent_name] ?? "darkgray";
         const icon = TOOL_ICON[inv.tool_name] ?? "⚙️";
         const hasError = !!inv.error;
 
         return (
-          <div key={idx} className={`border rounded-lg overflow-hidden ${hasError ? "border-red-300" : "border-gray-200"}`}>
+          <div
+            key={idx}
+            className={`border rounded-lg overflow-hidden ${hasError ? "border-red-300" : "border-gray-200"}`}
+          >
             <button
               onClick={() => setExpanded(isExpanded ? null : idx)}
               className="w-full flex items-center justify-between p-2.5 hover:bg-gray-50 text-left"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-base">{icon}</span>
-                <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${agentColorClass} shrink-0`}>
-                  {inv.agent_name}
-                </span>
+                <Badge variant={badgeVariant}>{inv.agent_name}</Badge>
                 <span className="text-xs font-mono text-gray-700 truncate">{inv.tool_name}</span>
                 {hasError && <span className="text-xs text-red-500 shrink-0">⚠ error</span>}
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-2">
                 <span className="text-xs text-gray-400 font-mono">{inv.latency_ms}ms</span>
-                <span className="text-gray-400 text-xs">{isExpanded ? "▲" : "▼"}</span>
+                <Icon glyph={isExpanded ? "ChevronUp" : "ChevronDown"} size="small" />
               </div>
             </button>
+
             {isExpanded && (
               <div className="border-t border-gray-100 p-3 space-y-3 bg-gray-50">
                 <div>
-                  <div className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Input</div>
-                  <pre className="text-xs bg-white border border-gray-200 rounded p-2 overflow-auto max-h-40 text-gray-700">
-                    {formatJson(inv.input)}
-                  </pre>
+                  <Body weight="medium" className="mb-1 block text-xs uppercase tracking-wide text-gray-500">Input</Body>
+                  <div className="max-h-40 overflow-auto">
+                    <Code language="json">{formatJson(inv.input)}</Code>
+                  </div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Output</div>
-                  <pre className="text-xs bg-white border border-gray-200 rounded p-2 overflow-auto max-h-60 text-gray-700">
-                    {formatJson(inv.output)}
-                  </pre>
-                </div>
-                {hasError && (
-                  <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2">
-                    {inv.error}
+                  <Body weight="medium" className="mb-1 block text-xs uppercase tracking-wide text-gray-500">Output</Body>
+                  <div className="max-h-60 overflow-auto">
+                    <Code language="json">{formatJson(inv.output)}</Code>
                   </div>
-                )}
-                <div className="text-xs text-gray-400 font-mono">
-                  {new Date(inv.timestamp).toLocaleTimeString()}
                 </div>
+                {hasError && <Banner variant="danger">{inv.error}</Banner>}
+                <Description className="font-mono block">
+                  {new Date(inv.timestamp).toLocaleTimeString()}
+                </Description>
               </div>
             )}
           </div>
