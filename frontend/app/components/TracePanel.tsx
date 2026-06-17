@@ -13,7 +13,7 @@ interface Props {
   invocations: ToolInvocation[];
 }
 
-const AGENT_BADGE_VARIANT: Record<string, "green" | "blue" | "lightgray"> = {
+const AGENT_BADGE_VARIANT: Record<string, "green" | "blue" | "lightgray" | "darkgray"> = {
   PlannerAgent: "green",
   ProductAgent: "blue",
   ProfileAgent: "lightgray",

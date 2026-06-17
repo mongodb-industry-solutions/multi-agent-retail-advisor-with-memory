@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import type { ReactNode } from "react";
 import { SessionSummary, listSessions, setSessionStar } from "@/app/lib/api";
 import { Popover } from "@leafygreen-ui/popover";
 import Card from "@leafygreen-ui/card";
@@ -28,7 +29,7 @@ function relativeDate(iso: string): string {
   return `${days}d ago`;
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function SectionLabel({ children }: { children: ReactNode }) {
   return (
     <div className="px-3 py-1 bg-gray-50 border-b border-gray-100 text-xs text-gray-400 font-semibold uppercase tracking-wide">
       {children}
