@@ -52,8 +52,9 @@ npm start        # Serve production build
 ### Data Seeding
 
 ```bash
-# Requires Python + pip install pymongo requests python-dotenv
-python helpers/seed.py
+# Requires Python + pip install "pymongo[srv]>=4.6" python-dotenv
+python helpers/seed.py          # first run
+python helpers/seed.py --force  # replace catalog (drops products collection)
 ```
 
 Only needed once — all data lives in MongoDB afterwards.
@@ -69,8 +70,6 @@ Copy `backend/.env.example` to `backend/.env` and fill in:
 | `LLM_API_KEY` | Azure API Management key for Claude |
 | `LLM_BASE_URL` | Azure gateway URL (not a direct Anthropic URL) |
 | `ANTHROPIC_MODEL` | Model ID (e.g. `claude-sonnet-4-5`) |
-| `VOYAGE_API_KEY` | Voyage AI key for embeddings |
-| `VOYAGE_MODEL` | Embedding model (e.g. `voyage-3-large`) |
 
 **Note on LLM headers:** The Azure API Management gateway requires `api-key` header instead of the standard `x-api-key`. This custom injection is wired in `AppConfig.java`.
 
@@ -103,7 +102,7 @@ com.mongodb.demo.retail/
 ├── controller/      # ChatController, TraceController, AgentCardController
 ├── orchestration/   # WorkflowOrchestrator — the central coordinator
 ├── mongodb/         # SessionRepository, AgentStateRepository, ToolInvocationRepository, MongoCollections
-├── service/         # EmbeddingService (Voyage AI REST client)
+├── service/         # AnthropicService (LLM streaming utilities)
 ├── config/          # AppConfig (Spring beans, Azure client), AgentContext (thread-local session ID)
 └── model/           # ChatRequest, ChatResponse, TraceResponse
 ```
@@ -112,7 +111,7 @@ com.mongodb.demo.retail/
 
 | Collection | Purpose |
 |---|---|
-| `products` | Catalog with 2048-dim Voyage AI embeddings |
+| `products` | Catalog with `search_text` field auto-embedded by Atlas Vector Search |
 | `users` | User preferences, sizes, favorite brands |
 | `user_memory` | Long-term facts the agents learn per user |
 | `sessions` | Full conversation history per sessionId |
@@ -121,10 +120,10 @@ com.mongodb.demo.retail/
 
 ### Search Indexes Required in Atlas
 
-- **Vector index** `product_vector_index` on `products.embedding` (cosine, 2048 dims)
-- **Text index** `product_text_index` on `products` (name, description, brand, category)
+- **Vector index** `product_vector_index` on `products.search_text` — type `text`, model `voyage-3-large` (Atlas Auto-Embeddings, M10+ required)
+- **Text index** `product_text_index` on `products` (name, description, brand, category, search_text)
 
-`helpers/seed.py` creates both indexes automatically.
+`helpers/seed.py` creates both indexes automatically. Atlas vectorizes documents in the background (~1–2 min after seeding).
 
 ### Frontend
 

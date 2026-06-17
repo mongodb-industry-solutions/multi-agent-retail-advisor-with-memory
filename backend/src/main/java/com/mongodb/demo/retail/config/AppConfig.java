@@ -4,14 +4,11 @@ import com.anthropic.client.AnthropicClient;
 import com.anthropic.client.okhttp.AnthropicOkHttpClient;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
-import okhttp3.OkHttpClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-
-import java.util.concurrent.TimeUnit;
 
 @Configuration
 public class AppConfig {
@@ -38,15 +35,6 @@ public class AppConfig {
                 .baseUrl(llmBaseUrl)
                 .apiKey("placeholder")
                 .putHeader("api-key", llmApiKey)
-                .build();
-    }
-
-    @Bean
-    public OkHttpClient okHttpClient() {
-        return new OkHttpClient.Builder()
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
                 .build();
     }
 
