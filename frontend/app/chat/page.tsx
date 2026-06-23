@@ -25,7 +25,7 @@ import { Pipeline, Stage } from "@leafygreen-ui/pipeline";
 import { Spinner } from "@leafygreen-ui/loading-indicator";
 import { Avatar } from "@leafygreen-ui/avatar";
 import { BasicEmptyState } from "@leafygreen-ui/empty-state";
-import { useToast } from "@leafygreen-ui/toast";
+import Banner from "@leafygreen-ui/banner";
 import ReactMarkdown from "react-markdown";
 import WhyMongoDBBanner from "../components/WhyMongoDBBanner";
 import Image from "next/image";
@@ -83,8 +83,8 @@ export default function ChatPage() {
   const [latestSession, setLatestSession] = useState<SessionSummary | null>(
     null,
   );
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { pushToast } = useToast();
 
   const activeTabIndex = TAB_ORDER.indexOf(activeTab);
   const traceCount = trace?.toolInvocations.length ?? 0;
@@ -162,11 +162,7 @@ export default function ChatPage() {
       if (traceResult.status === "fulfilled") setTrace(traceResult.value);
       if (profileResult.status === "fulfilled") setProfile(profileResult.value);
     } catch {
-      pushToast({
-        title: "Backend unreachable",
-        description: "Make sure the Java server is running on port 8080.",
-        variant: "important",
-      });
+      setErrorMsg("Backend unreachable — make sure the Java server is running on port 8080.");
     } finally {
       setLoading(false);
       setActiveAgent(undefined);
@@ -206,7 +202,7 @@ export default function ChatPage() {
       setTrace(traceData);
       setActiveTab("trace");
     } catch {
-      pushToast({ title: "Could not load session", variant: "important" });
+      setErrorMsg("Could not load session — please try again.");
     }
   }
 
@@ -229,11 +225,20 @@ export default function ChatPage() {
           <div className="flex items-center gap-1.5 shrink-0">
             <div className="w-3 h-3 rounded-full bg-green-500" />
             <span className="font-semibold text-gray-800 text-sm">
-              Multi-Agent Retail Advisor
+              Outdoor gear for every trail
             </span>
           </div>
 
         </div>
+
+        {/* Error banner */}
+        {errorMsg && (
+          <div className="px-5 pt-3">
+            <Banner variant="danger" onClose={() => setErrorMsg(null)}>
+              {errorMsg}
+            </Banner>
+          </div>
+        )}
 
         {/* Messages */}
         <div
@@ -242,7 +247,18 @@ export default function ChatPage() {
         >
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="text-4xl mb-3">🏔️</div>
+              <div className="mb-3 flex items-center justify-center w-16 h-16 rounded-2xl" style={{ backgroundColor: "#E8F5EE" }}>
+                <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 28L13 12L19 22L23 16L32 28H4Z" fill="#00684A" fillOpacity="0.85" />
+                  <circle cx="27" cy="11" r="3.5" fill="#00ED64" />
+                </svg>
+              </div>
+              <h1 className="text-xl font-bold text-gray-900 mt-3 mb-1">
+                The Trail Store
+              </h1>
+              <p className="text-sm text-gray-500 max-w-s mb-5 leading-relaxed">
+                Chat with our retail store AI assistant. Not a search bar. An advisor that knows your trails, your brands, and your size.
+              </p>
               <h2 className="font-semibold text-gray-700 mb-1">
                 Suggested questions:
               </h2>

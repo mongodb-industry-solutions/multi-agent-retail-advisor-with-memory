@@ -29,19 +29,19 @@ const whyMongoBanner = () => (
   <WhyMongoDBBanner title="🍃 One Platform - 5 data needs">
     <OrderedList>
       <OrderedListItem
-        title={<div><strong>Short Term Memory: </strong><InlineCode>sessions</InlineCode> — per-interaction chat history & working memory.</div>}
+        title={<span><strong>Short Term Memory: </strong><InlineCode>sessions</InlineCode> — per-interaction chat history & working memory.</span>}
       />
       <OrderedListItem
-        title={<div><strong>Long Term Memory: </strong><InlineCode>user_memory</InlineCode> — distilled facts that outlast a session.</div>}
+        title={<span><strong>Long Term Memory: </strong><InlineCode>user_memory</InlineCode> — distilled facts that outlast a session.</span>}
       />
       <OrderedListItem
-        title={<div><strong>Knowledge: </strong><InlineCode>products</InlineCode> — catalog with 2048-dim vector embeddings (Voyage AI).</div>}
+        title={<span><strong>Knowledge: </strong><InlineCode>products</InlineCode> — catalog with 2048-dim vector embeddings (Voyage AI).</span>}
       />
       <OrderedListItem
-        title={<div><strong>Agent State: </strong><InlineCode>agent_state</InlineCode> — orchestration checkpoints & decisions.</div>}
+        title={<span><strong>Agent State: </strong><InlineCode>agent_state</InlineCode> — orchestration checkpoints & decisions.</span>}
       />
       <OrderedListItem
-        title={<div><strong>Observability: </strong><InlineCode>tool_invocations</InlineCode> — full audit log with latency.</div>}
+        title={<span><strong>Observability: </strong><InlineCode>tool_invocations</InlineCode> — full audit log with latency.</span>}
       />
     </OrderedList>
   </WhyMongoDBBanner>
