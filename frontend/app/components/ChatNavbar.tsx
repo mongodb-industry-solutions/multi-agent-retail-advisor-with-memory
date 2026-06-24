@@ -16,7 +16,7 @@ interface ChatNavbarProps {
   loading: boolean;
 }
 
-const PILLS = ["Google ADK", "A2A", "MongoDB", "Anthropic"] as const;
+const PILLS = ["Google ADK", "A2A", "Anthropic", "MongoDB", "VoyageAI", "Autoembedding"] as const;
 
 
 export function ChatNavbar({

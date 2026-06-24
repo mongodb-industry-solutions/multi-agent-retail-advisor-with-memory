@@ -28,6 +28,7 @@ import { BasicEmptyState } from "@leafygreen-ui/empty-state";
 import Banner from "@leafygreen-ui/banner";
 import ReactMarkdown from "react-markdown";
 import WhyMongoDBBanner from "../components/WhyMongoDBBanner";
+import WhyMongoDBModal from "../components/WhyMongoDBModal";
 import Image from "next/image";
 
 interface Message {
@@ -84,6 +85,7 @@ export default function ChatPage() {
     null,
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showWhyModal, setShowWhyModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeTabIndex = TAB_ORDER.indexOf(activeTab);
@@ -222,11 +224,17 @@ export default function ChatPage() {
         <div className="flex flex-col w-[55%] border-r border-gray-200 bg-white">
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100 bg-white">
-          <div className="flex items-center gap-1.5 shrink-0">
-            <div className="w-3 h-3 rounded-full bg-green-500" />
-            <span className="font-semibold text-gray-800 text-sm">
-              Outdoor gear for every trail
-            </span>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl" style={{ backgroundColor: "#E8F5EE" }}>
+              <svg width="22" height="22" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 28L13 12L19 22L23 16L32 28H4Z" fill="#00684A" fillOpacity="0.85" />
+                <circle cx="27" cy="11" r="3.5" fill="#00ED64" />
+              </svg>
+            </div>
+            <div className="flex flex-col leading-tight">
+              <span className="font-bold text-gray-900 text-sm">The Trail Store</span>
+              <span className="text-xs text-gray-500">Outdoor gear for every trail</span>
+            </div>
           </div>
 
         </div>
@@ -466,6 +474,13 @@ export default function ChatPage() {
                       setSelectedUser(user);
                       newSession();
                     }}
+                    onMemoryReset={() => {
+                      setProfileLoading(true);
+                      getProfile(selectedUser.id)
+                        .then(setProfile)
+                        .catch(() => {})
+                        .finally(() => setProfileLoading(false));
+                    }}
                     loading={loading}
                     profile={profile}
                     profileLoading={profileLoading}
@@ -529,6 +544,7 @@ export default function ChatPage() {
                     agentState={trace?.agentState ?? {}}
                     user={profile?.user ?? {}}
                     memory={profile?.memory ?? {}}
+                    onLearnMore={() => setShowWhyModal(true)}
                   />
                 </div>
               </Tab>
@@ -536,27 +552,10 @@ export default function ChatPage() {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50">
-          <div className="flex items-center justify-between text-xs text-gray-400">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-green-500" />
-                <span>MongoDB Atlas</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-orange-500" />
-                <span>Anthropic LLM</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-blue-500" />
-                <span>Atlas Auto-Embeddings</span>
-              </span>
-            </div>
-          </div>
-        </div>
         </div>
       </div>
+
+      <WhyMongoDBModal open={showWhyModal} onClose={() => setShowWhyModal(false)} />
     </div>
   );
 }

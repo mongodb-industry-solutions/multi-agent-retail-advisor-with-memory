@@ -5,6 +5,7 @@ import { Subtitle } from "@leafygreen-ui/typography";
 import { palette } from "@leafygreen-ui/palette";
 import { spacing } from "@leafygreen-ui/tokens";
 import Button from "@leafygreen-ui/button";
+import { Icon } from "@leafygreen-ui/icon";
 
 type WhyMongoDBBannerProps = {
   children: ReactNode;
@@ -17,7 +18,7 @@ export default function WhyMongoDBBanner({
   children,
   title = "🍃 Why MongoDB?",
   onLearnMore,
-  learnMoreLabel = "✨ Learn More",
+  learnMoreLabel = "✨ Talk Track",
 }: WhyMongoDBBannerProps) {
   return (
     <div
@@ -41,7 +42,7 @@ export default function WhyMongoDBBanner({
           {title}
         </Subtitle>
         {onLearnMore && (
-          <Button size="small" variant="default" onClick={onLearnMore}>
+          <Button size="small" variant="default" onClick={onLearnMore} leftGlyph={<Icon glyph="Sparkle" />}>
             {learnMoreLabel}
           </Button>
         )}

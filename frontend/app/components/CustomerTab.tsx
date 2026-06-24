@@ -2,7 +2,8 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Image from "next/image";
-import { ProfileResponse, getProfile } from "@/app/lib/api";
+import { ProfileResponse, getProfile, resetMemory } from "@/app/lib/api";
+import Button from "@leafygreen-ui/button";
 import Badge from "@leafygreen-ui/badge";
 import Card from "@leafygreen-ui/card";
 import { Description, InlineCode, Body } from "@leafygreen-ui/typography";
@@ -21,6 +22,7 @@ interface CustomerTabProps {
   users: User[];
   selectedUser: User;
   onSelectUser: (user: User) => void;
+  onMemoryReset: () => void;
   loading: boolean;
   profile: ProfileResponse | null;
   profileLoading: boolean;
@@ -47,6 +49,7 @@ export function CustomerTab({
   users,
   selectedUser,
   onSelectUser,
+  onMemoryReset,
   loading,
   profile,
   profileLoading,
@@ -54,6 +57,8 @@ export function CustomerTab({
   const [allProfiles, setAllProfiles] = useState<
     Record<string, ProfileResponse>
   >({});
+  const [confirming, setConfirming] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     users.forEach((u) => {
@@ -62,6 +67,19 @@ export function CustomerTab({
         .catch(() => {});
     });
   }, [users]);
+
+  useEffect(() => { setConfirming(false); }, [selectedUser.id]);
+
+  async function handleReset() {
+    setResetting(true);
+    try {
+      await resetMemory(selectedUser.id);
+      onMemoryReset();
+    } finally {
+      setResetting(false);
+      setConfirming(false);
+    }
+  }
 
   const user = profile?.user ?? {};
   const memory = profile?.memory ?? {};
@@ -296,9 +314,33 @@ export function CustomerTab({
       </Card>
 
       {/* --- AI Memory --- */}
-      <SectionLabel>
-        AI-Learned Memory{facts.length > 0 ? ` — ${facts.length} Facts` : ""}
-      </SectionLabel>
+      <div className="flex items-center justify-between" style={{ margin: "1rem 0 0.5rem 0" }}>
+        <Description
+          className="text-xs uppercase tracking-wide"
+          style={{ color: palette.gray.dark1 }}
+        >
+          AI-Learned Memory{facts.length > 0 ? ` — ${facts.length} Facts` : ""}
+        </Description>
+        {!profileLoading && (
+          !confirming ? (
+            <Button size="small" variant="danger" onClick={() => setConfirming(true)}>
+              Reset memory
+            </Button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Description className="text-xs" style={{ color: palette.gray.dark2 }}>
+                Delete all facts for {selectedUser.name}?
+              </Description>
+              <Button size="xsmall" variant="danger" onClick={handleReset} disabled={resetting}>
+                {resetting ? "Deleting…" : "Confirm"}
+              </Button>
+              <Button size="xsmall" variant="default" onClick={() => setConfirming(false)} disabled={resetting}>
+                Cancel
+              </Button>
+            </div>
+          )
+        )}
+      </div>
 
       <Card className="!p-0 overflow-hidden">
           <div
@@ -344,6 +386,7 @@ export function CustomerTab({
               ))}
             </ul>
           )}
+
         </Card>
     </div>
   );

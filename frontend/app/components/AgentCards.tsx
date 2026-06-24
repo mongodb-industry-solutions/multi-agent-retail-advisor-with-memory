@@ -4,6 +4,7 @@ import { AgentCard } from "@/app/lib/api";
 import Card from "@leafygreen-ui/card";
 import Badge from "@leafygreen-ui/badge";
 import { Body, Description, InlineCode } from "@leafygreen-ui/typography";
+import { palette } from "@leafygreen-ui/palette";
 
 const AGENT_BORDER: Record<string, string> = {
   PlannerAgent: "border-green-500",
@@ -12,14 +13,14 @@ const AGENT_BORDER: Record<string, string> = {
 };
 
 const AGENT_BG: Record<string, string> = {
-  PlannerAgent: "#f0fdf4",
-  ProductAgent: "#eff6ff",
-  ProfileAgent: "#faf5ff",
+  PlannerAgent: `${palette.yellow.light3}`,
+  ProductAgent: `${palette.blue.light3}`,
+  ProfileAgent: `${palette.purple.light3}`,
 };
 
-const AGENT_BADGE_VARIANT: Record<string, "green" | "blue" | "lightgray" | "darkgray"> = {
-  PlannerAgent: "green",
-  ProductAgent: "blue",
+const AGENT_BADGE_VARIANT: Record<string, "yellow" | "blue" | "lightgray" | "darkgray"> = {
+  PlannerAgent: "lightgray",
+  ProductAgent: "lightgray",
   ProfileAgent: "lightgray",
 };
 
@@ -46,8 +47,8 @@ export function AgentCards({ agents, activeAgent }: Props) {
         return (
           <Card
             key={agent.name}
-            className={`!p-3 border-l-4 ${borderClass} transition-all duration-300 ${
-              isActive ? "shadow-md scale-[1.01]" : "opacity-80"
+            className={`!p-3 transition-all duration-300 ${
+              isActive ? "shadow-md scale-[1.01]" : ""
             }`}
             style={{ backgroundColor: bgColor }}
           >

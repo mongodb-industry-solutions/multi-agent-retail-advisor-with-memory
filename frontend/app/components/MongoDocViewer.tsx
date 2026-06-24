@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Button from "@leafygreen-ui/button";
 import { Code } from "@leafygreen-ui/code";
-import { InlineCode } from "@leafygreen-ui/typography";
+import { Description, InlineCode } from "@leafygreen-ui/typography";
 import { BasicEmptyState } from "@leafygreen-ui/empty-state";
 import { OrderedList, OrderedListItem } from "@leafygreen-ui/ordered-list";
 import WhyMongoDBBanner from "./WhyMongoDBBanner";
 import Image from "next/image";
+import { palette } from "@leafygreen-ui/palette";
 
 type DocKey = "session" | "state" | "user" | "memory";
 
@@ -16,6 +17,7 @@ interface Props {
   agentState: Record<string, unknown>;
   user?: Record<string, unknown>;
   memory?: Record<string, unknown>;
+  onLearnMore?: () => void;
 }
 
 const LABELS: Record<DocKey, string> = {
@@ -25,8 +27,8 @@ const LABELS: Record<DocKey, string> = {
   memory: "user_memory",
 };
 
-const whyMongoBanner = () => (
-  <WhyMongoDBBanner title="🍃 One Platform - 5 data needs">
+const whyMongoBanner = (onLearnMore?: () => void) => (
+  <WhyMongoDBBanner title="🍃 One Platform - 5 data needs" onLearnMore={onLearnMore} learnMoreLabel="Learn More">
     <OrderedList>
       <OrderedListItem
         title={<span><strong>Short Term Memory: </strong><InlineCode>sessions</InlineCode> — per-interaction chat history & working memory.</span>}
@@ -47,11 +49,22 @@ const whyMongoBanner = () => (
   </WhyMongoDBBanner>
 );
 
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <Description
+      className="block text-xs uppercase tracking-wide"
+      style={{ color: palette.gray.dark1, margin: "1rem 0 0.5rem 0" }}
+    >
+      {children}
+    </Description>
+  );
+}
 export function MongoDocViewer({
   session,
   agentState,
   user = {},
   memory = {},
+  onLearnMore,
 }: Props) {
   const [activeDoc, setActiveDoc] = useState<DocKey>("session");
 
@@ -69,7 +82,7 @@ export function MongoDocViewer({
   if (allEmpty) {
     return (
       <>
-        {whyMongoBanner()}
+        {whyMongoBanner(onLearnMore)}
         <BasicEmptyState
           title="No documents yet"
           description="Tool invocations will appear here after you get a response"
@@ -81,7 +94,8 @@ export function MongoDocViewer({
 
   return (
     <div>
-      {whyMongoBanner()}
+      {whyMongoBanner(onLearnMore)}
+      <SectionLabel>Select a MongoDB collection</SectionLabel>
       <div className="flex gap-1 mb-2 mt-2 flex-wrap">
         {(Object.keys(LABELS) as DocKey[]).map((key) => {
           const isEmpty = !docs[key] || Object.keys(docs[key]).length === 0;
