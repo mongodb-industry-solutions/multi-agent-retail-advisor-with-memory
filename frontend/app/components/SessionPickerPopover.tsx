@@ -10,6 +10,8 @@ import { Body, Description } from "@leafygreen-ui/typography";
 import { Spinner } from "@leafygreen-ui/loading-indicator";
 import { BasicEmptyState } from "@leafygreen-ui/empty-state";
 import { DatePicker } from "@leafygreen-ui/date-picker";
+import Image from "next/image";
+import {Button} from "@leafygreen-ui/button";
 
 interface Props {
   userId: string;
@@ -37,7 +39,11 @@ function SectionLabel({ children }: { children: ReactNode }) {
   );
 }
 
-export function SessionPickerPopover({ userId, onResume, latestSession }: Props) {
+export function SessionPickerPopover({
+  userId,
+  onResume,
+  latestSession,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,7 +75,8 @@ export function SessionPickerPopover({ userId, onResume, latestSession }: Props)
   useEffect(() => {
     if (!latestSession) return;
     setSessions((prev) => {
-      if (prev.some((s) => s.sessionId === latestSession.sessionId)) return prev;
+      if (prev.some((s) => s.sessionId === latestSession.sessionId))
+        return prev;
       return [latestSession, ...prev];
     });
   }, [latestSession?.sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -82,7 +89,10 @@ export function SessionPickerPopover({ userId, onResume, latestSession }: Props)
       listSessions(userId)
         .then((list) => {
           // merge latestSession if it hasn't been persisted yet
-          if (latestSession && !list.some((s) => s.sessionId === latestSession.sessionId)) {
+          if (
+            latestSession &&
+            !list.some((s) => s.sessionId === latestSession.sessionId)
+          ) {
             setSessions([latestSession, ...list]);
           } else {
             setSessions(list);
@@ -96,13 +106,17 @@ export function SessionPickerPopover({ userId, onResume, latestSession }: Props)
   async function handleToggleStar(s: SessionSummary) {
     const newStarred = !s.starred;
     setSessions((prev) =>
-      prev.map((x) => (x.sessionId === s.sessionId ? { ...x, starred: newStarred } : x))
+      prev.map((x) =>
+        x.sessionId === s.sessionId ? { ...x, starred: newStarred } : x,
+      ),
     );
     try {
       await setSessionStar(s.sessionId, newStarred);
     } catch {
       setSessions((prev) =>
-        prev.map((x) => (x.sessionId === s.sessionId ? { ...x, starred: s.starred } : x))
+        prev.map((x) =>
+          x.sessionId === s.sessionId ? { ...x, starred: s.starred } : x,
+        ),
       );
     }
   }
@@ -121,7 +135,9 @@ export function SessionPickerPopover({ userId, onResume, latestSession }: Props)
         <button
           onClick={() => handleToggleStar(s)}
           className={`shrink-0 mt-0.5 text-base leading-none ${
-            s.starred ? "text-yellow-400" : "text-gray-200 hover:text-yellow-300"
+            s.starred
+              ? "text-yellow-400"
+              : "text-gray-200 hover:text-yellow-300"
           }`}
           aria-label={s.starred ? "Unstar session" : "Star session"}
         >
@@ -135,13 +151,17 @@ export function SessionPickerPopover({ userId, onResume, latestSession }: Props)
           className="flex-1 text-left min-w-0"
         >
           <div className="flex items-center justify-between gap-2 mb-0.5">
-            <span className="text-xs text-gray-400 shrink-0">{relativeDate(s.updatedAt)}</span>
+            <span className="text-xs text-gray-400 shrink-0">
+              {relativeDate(s.updatedAt)}
+            </span>
             <Badge variant="lightgray">
               {s.messageCount} msg{s.messageCount !== 1 ? "s" : ""}
             </Badge>
           </div>
           <p className="text-xs text-gray-700 leading-snug line-clamp-2">
-            {s.preview || <span className="italic text-gray-400">No messages</span>}
+            {s.preview || (
+              <span className="italic text-gray-400">No messages</span>
+            )}
           </p>
         </button>
       </div>
@@ -150,20 +170,30 @@ export function SessionPickerPopover({ userId, onResume, latestSession }: Props)
 
   return (
     <div className="relative">
-      <button
+      <Button
+        size="small"
+        variant="default"
         ref={triggerRef}
         onClick={handleOpen}
-        className="text-xs text-gray-500 hover:text-gray-800 border border-gray-200 rounded px-2 py-1 bg-white hover:bg-gray-50 transition-colors whitespace-nowrap"
+        className="whitespace-nowrap"
         aria-label="View session history"
       >
-        History
-      </button>
+        Customer Conversations History
+      </Button>
 
-      <Popover active={open} refEl={triggerRef} align="bottom" justify="end" spacing={8}>
+      <Popover
+        active={open}
+        refEl={triggerRef}
+        align="bottom"
+        justify="end"
+        spacing={8}
+      >
         <div ref={popoverRef}>
           <Card className="!p-0 w-80 shadow-xl overflow-hidden">
             <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50">
-              <Body weight="medium" className="text-sm">Session History</Body>
+              <Body weight="medium" className="text-sm">
+                Customer Conversations History
+              </Body>
             </div>
 
             {loading ? (
@@ -175,6 +205,15 @@ export function SessionPickerPopover({ userId, onResume, latestSession }: Props)
                 <BasicEmptyState
                   title="No sessions yet"
                   description="Past sessions will appear here after you chat"
+                  graphic={
+                    <Image
+                      src="/icons/data.png"
+                      alt="No invocations"
+                      width={150}
+                      height={150}
+                      style={{ width: 150, height: "auto" }}
+                    />
+                  }
                 />
               </div>
             ) : (
@@ -207,13 +246,19 @@ export function SessionPickerPopover({ userId, onResume, latestSession }: Props)
                       {pinned.length > 0 && (
                         <>
                           <SectionLabel>📌 Pinned</SectionLabel>
-                          {pinned.map((s) => <SessionRow key={s.sessionId} s={s} />)}
+                          {pinned.map((s) => (
+                            <SessionRow key={s.sessionId} s={s} />
+                          ))}
                         </>
                       )}
                       {regular.length > 0 && (
                         <>
-                          {pinned.length > 0 && <SectionLabel>All sessions</SectionLabel>}
-                          {regular.map((s) => <SessionRow key={s.sessionId} s={s} />)}
+                          {pinned.length > 0 && (
+                            <SectionLabel>All sessions</SectionLabel>
+                          )}
+                          {regular.map((s) => (
+                            <SessionRow key={s.sessionId} s={s} />
+                          ))}
                         </>
                       )}
                     </>
