@@ -4,7 +4,6 @@ import Image from "next/image";
 import { Description } from "@leafygreen-ui/typography";
 import { Code } from "@leafygreen-ui/code";
 import { Callout } from "@leafygreen-ui/callout";
-import { palette } from "@leafygreen-ui/palette";
 
 const VECTOR_PIPELINE = `{
   "$vectorSearch": {

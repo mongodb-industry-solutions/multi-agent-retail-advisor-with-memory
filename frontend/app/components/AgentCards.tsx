@@ -6,12 +6,6 @@ import Badge from "@leafygreen-ui/badge";
 import { Body, Description, InlineCode } from "@leafygreen-ui/typography";
 import { palette } from "@leafygreen-ui/palette";
 
-const AGENT_BORDER: Record<string, string> = {
-  PlannerAgent: "border-green-500",
-  ProductAgent: "border-blue-500",
-  ProfileAgent: "border-purple-500",
-};
-
 const AGENT_BG: Record<string, string> = {
   PlannerAgent: `${palette.yellow.light3}`,
   ProductAgent: `${palette.blue.light3}`,

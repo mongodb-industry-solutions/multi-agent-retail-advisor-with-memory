@@ -1,12 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { InlineCode, Description } from "@leafygreen-ui/typography";
+import { InlineCode } from "@leafygreen-ui/typography";
 import { Callout } from "@leafygreen-ui/callout";
 import { palette } from "@leafygreen-ui/palette";
-
-const CATALOG_STEPS = ["Product catalog", "voyage-4-large", "2048-dim index"];
-const QUERY_STEPS = ["User query", "voyage-4-lite", "$vectorSearch"];
 
 const MODEL_ROWS = [
   {
