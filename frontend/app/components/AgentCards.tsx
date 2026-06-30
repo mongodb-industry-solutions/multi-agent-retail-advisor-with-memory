@@ -40,7 +40,6 @@ export function AgentCards({ agents, activeAgent }: Props) {
     <div className="space-y-3">
       {agents.map((agent) => {
         const isActive = activeAgent === agent.name;
-        const borderClass = AGENT_BORDER[agent.name] ?? "border-gray-300";
         const bgColor = AGENT_BG[agent.name] ?? "#f9fafb";
         const badgeVariant = AGENT_BADGE_VARIANT[agent.name] ?? "darkgray";
 

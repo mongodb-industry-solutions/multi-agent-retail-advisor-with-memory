@@ -22,6 +22,7 @@
     "@leafygreen-ui/icon": "^14.9.0",
     "@leafygreen-ui/leafygreen-provider": "^5.0.4",
     "@leafygreen-ui/loading-indicator": "^5.1.1",
+    "@leafygreen-ui/modal": "^22.0.1",
     "@leafygreen-ui/ordered-list": "^3.0.11",
     "@leafygreen-ui/pipeline": "^8.0.10",
     "@leafygreen-ui/popover": "^14.3.2",

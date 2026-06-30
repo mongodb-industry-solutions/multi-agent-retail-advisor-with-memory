@@ -2,7 +2,7 @@
 
 import { MongoDBLogoMark } from "@leafygreen-ui/logo";
 import Badge from "@leafygreen-ui/badge";
-import Button from "@leafygreen-ui/button";
+import {Button} from "@leafygreen-ui/button";
 import { Icon } from "@leafygreen-ui/icon";
 import { SessionPickerPopover } from "@/app/components/SessionPickerPopover";
 import type { SessionSummary } from "@/app/lib/api";
