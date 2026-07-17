@@ -12,12 +12,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* This app is a light-themed UI (white surfaces, dark text). We intentionally
+   do NOT follow prefers-color-scheme: dark — doing so only flips the inherited
+   text color to near-white and makes controls that rely on inherited color
+   (suggestion buttons, the chat input) invisible on their white backgrounds. */
 
 body {
   background: var(--background);
@@ -27,6 +25,7 @@ body {
 
 button.suggestion {
   background-color: white !important;
+  color: #001E2B !important;
   border: none !important;
   padding: 2px 10px !important;
   margin-top: 5px;
