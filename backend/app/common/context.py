@@ -10,7 +10,7 @@ tasks ADK uses, so the value set at request-entry is visible inside the tool cal
 """
 from __future__ import annotations
 
-from contextvars import ContextVar
+from contextvars import ContextVar, Token
 from typing import Optional
 
 # HTTP header used to carry the originating session id across A2A hops.
@@ -19,12 +19,18 @@ SESSION_HEADER = "X-Session-Id"
 _session_id: ContextVar[Optional[str]] = ContextVar("session_id", default=None)
 
 
-def set_session_id(session_id: Optional[str]) -> None:
-    _session_id.set(session_id)
+def set_session_id(session_id: Optional[str]) -> Token:
+    """Set the current session id, returning a token for reset_session_id()."""
+    return _session_id.set(session_id)
 
 
 def get_session_id() -> Optional[str]:
     return _session_id.get()
+
+
+def reset_session_id(token: Token) -> None:
+    """Restore the session id to its previous value (pairs with set_session_id)."""
+    _session_id.reset(token)
 
 
 def clear_session_id() -> None:

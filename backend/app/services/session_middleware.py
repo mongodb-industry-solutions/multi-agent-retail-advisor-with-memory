@@ -19,9 +19,18 @@ class SessionHeaderMiddleware:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope.get("type") == "http":
-            for key, value in scope.get("headers") or []:
-                if key == _HEADER:
-                    context.set_session_id(value.decode())
-                    break
-        await self.app(scope, receive, send)
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+        token = None
+        for key, value in scope.get("headers") or []:
+            if key == _HEADER:
+                token = context.set_session_id(value.decode())
+                break
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            # Restore the previous value so a session id can't leak into
+            # unrelated work if the underlying task/context is reused.
+            if token is not None:
+                context.reset_session_id(token)

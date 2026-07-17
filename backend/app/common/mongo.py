@@ -81,16 +81,25 @@ def find_session(session_id: str) -> Optional[dict]:
 
 # --- agent_state (was AgentStateRepository) ---
 def create_agent_state(session_id: str, workflow_type: str) -> None:
-    col(AGENT_STATE).insert_one(
+    # Upsert keyed by session_id: the frontend reuses a sessionId across turns, so
+    # inserting unconditionally would create duplicate agent_state docs (and make
+    # find_agent_state return an arbitrary one). Reset the state fields instead;
+    # preserve created_at and clear any stale error from a prior failed turn.
+    now = _now()
+    col(AGENT_STATE).update_one(
+        {"session_id": session_id},
         {
-            "session_id": session_id,
-            "workflow_type": workflow_type,
-            "status": "running",
-            "current_step": "initializing",
-            "context": {},
-            "created_at": _now(),
-            "updated_at": _now(),
-        }
+            "$set": {
+                "workflow_type": workflow_type,
+                "status": "running",
+                "current_step": "initializing",
+                "context": {},
+                "updated_at": now,
+            },
+            "$setOnInsert": {"created_at": now},
+            "$unset": {"error": ""},
+        },
+        upsert=True,
     )
 
 

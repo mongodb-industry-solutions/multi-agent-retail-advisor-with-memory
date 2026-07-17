@@ -15,9 +15,11 @@ Run: ``uvicorn app.services.orchestrator:app --host 0.0.0.0 --port 8080``
 from __future__ import annotations
 
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any, Optional
 
+import anyio
 import httpx
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -88,7 +90,14 @@ def _iso(value: Any) -> str:
 
 
 # --- app -------------------------------------------------------------------
-app = FastAPI(title="Retail Advisor — A2A Orchestrator")
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    yield
+    # Close the shared A2A client on shutdown to avoid leaking sockets.
+    await _httpx_client.aclose()
+
+
+app = FastAPI(title="Retail Advisor — A2A Orchestrator", lifespan=_lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.CORS_ORIGINS,
@@ -97,32 +106,15 @@ app.add_middleware(
 )
 
 
-@app.post("/api/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest) -> ChatResponse:
-    session_id = req.sessionId or str(uuid.uuid4())
-
-    mongo.init_session(session_id, req.userId)
-    mongo.append_message(session_id, "user", req.message)
+def _begin_chat(session_id: str, user_id: str, message: str) -> None:
+    mongo.init_session(session_id, user_id)
+    mongo.append_message(session_id, "user", message)
     mongo.create_agent_state(session_id, "product_advisor")
     mongo.update_step(session_id, "planning")
 
-    full_input = f"User ID: {req.userId}\nUser message: {req.message}"
 
-    # Stamp the session id so the A2A client forwards it downstream (X-Session-Id),
-    # letting the specialist tools correlate their tool_invocations to this session.
-    context.set_session_id(session_id)
-    try:
-        mongo.update_step(session_id, "executing")
-        reply = await _run_planner(full_input, req.userId)
-        mongo.update_step(session_id, "synthesizing")
-    except Exception as e:  # noqa: BLE001
-        mongo.fail_agent_state(session_id, str(e))
-        reply = "I'm sorry, I encountered an issue while processing your request. Please try again."
-    finally:
-        context.clear_session_id()
-
+def _finish_chat(session_id: str, reply: str) -> int:
     mongo.append_message(session_id, "assistant", reply)
-
     tool_count = len(mongo.find_tool_invocations(session_id))
     mongo.complete_agent_state(
         session_id,
@@ -131,6 +123,32 @@ async def chat(req: ChatRequest) -> ChatResponse:
             "agents_invoked": ["PlannerAgent", "ProductAgent", "ProfileAgent"],
         },
     )
+    return tool_count
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat(req: ChatRequest) -> ChatResponse:
+    session_id = req.sessionId or str(uuid.uuid4())
+    full_input = f"User ID: {req.userId}\nUser message: {req.message}"
+
+    # The synchronous PyMongo bookkeeping runs in a worker thread so it never
+    # blocks the asyncio event loop that drives the (awaited) A2A calls.
+    await anyio.to_thread.run_sync(_begin_chat, session_id, req.userId, req.message)
+
+    # Stamp the session id so the A2A client forwards it downstream (X-Session-Id),
+    # letting the specialist tools correlate their tool_invocations to this session.
+    token = context.set_session_id(session_id)
+    try:
+        await anyio.to_thread.run_sync(mongo.update_step, session_id, "executing")
+        reply = await _run_planner(full_input, req.userId)
+        await anyio.to_thread.run_sync(mongo.update_step, session_id, "synthesizing")
+    except Exception as e:  # noqa: BLE001
+        await anyio.to_thread.run_sync(mongo.fail_agent_state, session_id, str(e))
+        reply = "I'm sorry, I encountered an issue while processing your request. Please try again."
+    finally:
+        context.reset_session_id(token)
+
+    tool_count = await anyio.to_thread.run_sync(_finish_chat, session_id, reply)
     return ChatResponse(reply=reply, sessionId=session_id, toolCallCount=tool_count)
 
 
