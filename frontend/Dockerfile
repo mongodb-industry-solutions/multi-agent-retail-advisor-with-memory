@@ -4,7 +4,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 FROM node:20-alpine AS build
-ARG BACKEND_URL=http://backend:8080
+ARG BACKEND_URL=http://orchestrator:8080
 ENV BACKEND_URL=${BACKEND_URL}
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules

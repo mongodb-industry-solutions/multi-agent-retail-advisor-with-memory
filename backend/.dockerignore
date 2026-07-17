@@ -1,4 +1,11 @@
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+# Legacy Java build inputs/outputs (backend is now Python)
+src/
 target/
+pom.xml
 *.md
 .env
 .env.*

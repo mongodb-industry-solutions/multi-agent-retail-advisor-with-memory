@@ -46,14 +46,19 @@ This inserts 135 outdoor apparel products + sample users into MongoDB and create
 docker compose up -d
 ```
 
-Both images are built from source. First build takes ~10–20 minutes (Maven downloads all dependencies). Subsequent builds use Docker layer cache and are much faster.
+This starts **five services**: `orchestrator` (:8080, the REST API), `planner-agent-service` (:8081), `profile-agent-service` (:9091), `product-agent-service` (:9092), and `frontend` (:3000). The four backend services share one Python image, built from source — first build takes ~5–10 minutes (installing the ADK + A2A + LiteLLM stack). Subsequent builds use Docker layer cache.
 
 ```bash
 # Watch all logs
 docker compose logs -f
 
-# Watch backend only
-docker compose logs -f backend
+# Watch the orchestrator (REST API) only
+docker compose logs -f orchestrator
+
+# Confirm the A2A cards are being served
+curl http://localhost:8081/.well-known/agent-card.json   # planner
+curl http://localhost:9091/.well-known/agent-card.json   # profile
+curl http://localhost:9092/.well-known/agent-card.json   # product
 ```
 
 ---
@@ -70,8 +75,11 @@ docker compose logs -f backend
 # Rebuild after code changes
 docker compose build && docker compose up -d
 
-# Rebuild only backend
-docker compose build backend && docker compose up -d backend
+# Rebuild only the backend image (shared by all four backend services)
+docker compose build orchestrator && docker compose up -d
+
+# Restart a single A2A service
+docker compose up -d --force-recreate product-agent-service
 
 # Rebuild only frontend
 docker compose build frontend && docker compose up -d frontend
@@ -81,4 +89,17 @@ docker compose down
 
 # Re-run seeding
 python helpers/seed.py
+```
+
+### Local dev without Docker
+
+```bash
+cd backend
+python3.13 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+# In four terminals (each reads backend/.env):
+uvicorn app.services.profile_server:app --port 9091
+uvicorn app.services.product_server:app --port 9092
+uvicorn app.services.planner_server:app --port 8081
+uvicorn app.services.orchestrator:app  --port 8080
 ```

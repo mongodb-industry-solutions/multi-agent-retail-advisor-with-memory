@@ -24,7 +24,15 @@ Open `http://localhost:3000` and point to the three cards on the right side:
 - **ProductAgent** — semantic product search via Atlas Vector Search
 - **ProfileAgent** — reads and updates long-term user memory
 
-> "Each card is an A2A AgentCard — a structured capability descriptor. Any A2A-compatible orchestrator could discover and call these agents without knowing their internals."
+> "Each card is a real, spec-compliant A2A AgentCard — and each agent is an independent service. The Agents panel isn't showing hardcoded metadata; the orchestrator fetched these live from each agent's `/.well-known/agent-card.json`."
+
+Optionally, prove it live from a terminal:
+
+```bash
+curl http://localhost:9092/.well-known/agent-card.json | jq
+```
+
+> "This is the ProductAgent's card, served from its own service on port 9092. The Planner discovers it exactly this way, then calls it over JSON-RPC. Any A2A-compatible orchestrator could do the same — including calling our Planner, which is itself an A2A service on 8081."
 
 ---
 
