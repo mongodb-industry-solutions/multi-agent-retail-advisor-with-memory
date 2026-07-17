@@ -6,7 +6,7 @@ A retail product advisor multi-agent system demonstrating:
 - **A2A (Agent-to-Agent) protocol** — each agent is an independent service that publishes a spec-compliant AgentCard at `/.well-known/agent-card.json` and communicates over **JSON-RPC 2.0**. Every agent hop is a real network call, not an in-process function call.
 - **MongoDB as the agentic data plane** — product catalog, user profiles, long-term memory, session history, orchestration state, and tool audit log all live in MongoDB Atlas
 
-The LLM behind the agents is Anthropic (model-agnostic architecture — swap `ANTHROPIC_MODEL` to change).
+The LLM is provider-agnostic via LiteLLM — swap `LLM_MODEL` (e.g. `claude-sonnet-4-5`, or a prefixed `openai/gpt-4o`) to change.
 
 → **[Setup instructions](docs/SETUP.md)** · **[Demo flow](docs/DEMO.md)**
 
@@ -21,7 +21,7 @@ The LLM behind the agents is Anthropic (model-agnostic architecture — swap `AN
 | Agent-to-agent | A2A protocol via `a2a-sdk` (JSON-RPC 2.0 over HTTP) |
 | API layer | FastAPI (orchestrator) · Starlette/uvicorn (A2A servers) |
 | LLM | Anthropic (Claude) via LiteLLM → Azure API Management gateway |
-| Embeddings | Atlas Vector Search Auto-Embeddings (`voyage-3-large`, server-side) |
+| Embeddings | Atlas Auto-Embeddings — Voyage 4 asymmetric (`voyage-4-large` docs / `voyage-4-lite` queries) + native `$rerank` (`rerank-2.5`) |
 | Database | MongoDB Atlas (Vector Search + full-text Search) |
 | Frontend | Next.js 16 · React 18 · TypeScript · Tailwind CSS 4 |
 
@@ -66,9 +66,13 @@ MongoDB Atlas is not just the product database — it is the substrate the entir
 
 ### Search: vector-first with text fallback
 
-**Primary — Atlas Vector Search (Auto-Embeddings):** the query is passed as plain text to `$vectorSearch`; Atlas vectorizes server-side using `voyage-3-large` — no embedding API calls from the app. Structured filters are pushed inside the `$vectorSearch` stage.
+**Primary — Atlas Vector Search with Voyage 4 asymmetric embedding:** the query is passed as plain text to `$vectorSearch`; Atlas vectorizes server-side — no embedding API calls from the app. The catalog is embedded once with the flagship **`voyage-4-large`**, while each query is embedded with the ~6× cheaper **`voyage-4-lite`** via the stage's `model` override (valid because Voyage 4 models share one embedding space). Structured filters are pushed inside the `$vectorSearch` stage.
 
-**Fallback — Atlas full-text Search:** if vector search fails (index not ready, tier too low), the tool retries with `$search` across `name`, `description`, and `brand`. The Trace panel reveals which path was taken.
+**Then — native reranking:** a `$rerank` stage reorders the vector-search candidates with a Voyage reranker (**`rerank-2.5`**) — entirely inside the aggregation pipeline, no external API — before returning the top matches. Each result carries both `vectorScore` and `rerankScore`.
+
+**Fallback — Atlas full-text Search:** if vector search or reranking is unavailable (index not migrated, reranking Preview not enabled, tier too low), the tool degrades gracefully — vector-only, then `$search` across `name`, `description`, and `brand`. The Trace panel reveals which path was taken.
+
+> Model names are env-configurable (`VOYAGE_DOC_MODEL`, `VOYAGE_QUERY_MODEL`, `RERANK_MODEL`). Native reranking needs an Atlas cluster on MongoDB 8.3+ with the **Native Reranking Preview** enabled in Project Settings; re-seed with `python helpers/seed.py --force` after changing the embedding model.
 
 ### The UI
 

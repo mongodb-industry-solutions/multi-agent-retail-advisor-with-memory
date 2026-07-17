@@ -72,7 +72,9 @@ Only needed once — all data lives in MongoDB afterwards.
 | `MONGODB_DATABASE` | Database name |
 | `LLM_API_KEY` | Azure API Management key for Claude |
 | `LLM_BASE_URL` | Azure gateway URL |
-| `ANTHROPIC_MODEL` | Model ID (e.g. `claude-sonnet-4-5`) |
+| `LLM_MODEL` | Chat model, e.g. `claude-sonnet-4-5` (or a prefixed `openai/gpt-4o`). Legacy `ANTHROPIC_MODEL` is still honored as a fallback. |
+| `VOYAGE_DOC_MODEL` / `VOYAGE_QUERY_MODEL` | Optional. Corpus vs query embedding models (default `voyage-4-large` / `voyage-4-lite`). |
+| `RERANK_MODEL` | Optional. Native reranker (default `rerank-2.5`). |
 
 The A2A topology vars (`PLANNER_AGENT_URL`, `PROFILE_AGENT_URL`, `PRODUCT_AGENT_URL`, `A2A_HOST`, ports) are injected per service by `docker-compose.yml`; locally they default to loopback (`app/common/config.py`).
 
@@ -120,7 +122,7 @@ app/
 
 ### Search Indexes Required in Atlas
 
-- **Vector index** `product_vector_index` on `products.search_text` — Atlas Auto-Embeddings, `voyage-3-large` (M10+ required)
+- **Vector index** `product_vector_index` on `products.search_text` — Atlas Auto-Embeddings, `autoEmbed` type with `voyage-4-large` (docs); queries embed with `voyage-4-lite` via the `$vectorSearch` `model` override (M10+ required)
 - **Text index** `product_text_index` on `products` (name, description, brand, category, search_text)
 
 `helpers/seed.py` creates both automatically.
@@ -130,5 +132,5 @@ app/
 - **Every agent is an independent A2A service.** `to_a2a(agent, ...)` (ADK) turns each `LlmAgent` into a Starlette app that serves its card at `/.well-known/agent-card.json` and handles `message/send` over JSON-RPC. The planner consumes the specialists with ADK's `RemoteA2aAgent` (which resolves the well-known card and calls it).
 - **Session correlation across processes.** Since tools run in separate services from the planner, the originating `session_id` rides an `X-Session-Id` HTTP header (injected by `common/a2a.py` from a contextvar, read back by `session_middleware.py`). Tools stamp `tool_invocations` with it so the trace endpoint reconstructs the whole cross-service run.
 - **Tools are synchronous** functions so ADK offloads them to a worker thread, keeping the sync PyMongo calls off the event loop.
-- **SearchProductsTool** tries Atlas Vector Search first (auto-embeddings), falling back to `$search` text search on failure.
+- **`search_products`** (`common/tools.py`) uses Voyage 4 asymmetric embedding (docs `voyage-4-large`, queries `voyage-4-lite`) + a native `$rerank` (`rerank-2.5`) stage, then degrades gracefully: vector+rerank → vector-only → `$search` text. Native reranking requires MongoDB 8.3+ with the Native Reranking Preview enabled; after changing the embedding model, re-seed with `python helpers/seed.py --force`.
 - The **orchestrator preserves the exact REST contract** the frontend depends on (`/api/chat`, `/api/trace`, `/api/agents`, `/api/profile`, `/api/sessions`); the frontend is unchanged by the rewrite.

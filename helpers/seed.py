@@ -33,6 +33,10 @@ load_dotenv(ROOT / "backend" / ".env")
 MONGODB_URI      = os.environ.get("MONGODB_URI")
 MONGODB_DATABASE = os.environ.get("MONGODB_DATABASE", "retail_advisor_demo")
 
+# Flagship Voyage 4 model used to embed the catalog (documents) once. Queries use
+# a lighter, cheaper model at run time (see VOYAGE_QUERY_MODEL in the backend).
+VOYAGE_DOC_MODEL = os.environ.get("VOYAGE_DOC_MODEL", "voyage-4-large")
+
 DATA_DIR = ROOT / "helpers" / "data"
 
 VECTOR_INDEX_NAME = "product_vector_index"
@@ -114,7 +118,9 @@ def main():
     else:
         definition = {
             "fields": [
-                {"type": "text", "path": "search_text", "model": "voyage-3-large"},
+                # Automated Embedding: Atlas embeds `search_text` with the flagship
+                # Voyage 4 model at index time (and re-embeds on insert/update).
+                {"type": "autoEmbed", "modality": "text", "path": "search_text", "model": VOYAGE_DOC_MODEL},
                 {"type": "filter", "path": "price"},
                 {"type": "filter", "path": "size_options"},
                 {"type": "filter", "path": "attributes.waterproof"},

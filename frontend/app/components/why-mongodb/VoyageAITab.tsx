@@ -69,6 +69,12 @@ export function VoyageAITab() {
         </table>
       </div>
 
+      <p className="text-sm text-gray-700">
+        Querying with the lighter model trades a little recall for big cost savings — then MongoDB&apos;s
+        native <code>$rerank</code> stage restores top-end accuracy by reordering the candidates with a
+        Voyage reranker (<code>rerank-2.5</code>), all inside the same aggregation pipeline.
+      </p>
+
       <Callout variant="important" title="Dedicated Search Nodes">
         In production, spin up search-specific nodes so vector and text search operations never
         compete with your operational workload for CPU and memory.

@@ -12,12 +12,15 @@ annotated ``tool_context: ToolContext`` is injected by ADK and hidden from the L
 from __future__ import annotations
 
 import json
+import logging
 import time
 from typing import Any, Optional
 
 from google.adk.tools import ToolContext
 
-from . import context, mongo
+from . import config, context, mongo
+
+log = logging.getLogger(__name__)
 
 
 # --- helpers ---------------------------------------------------------------
@@ -90,20 +93,44 @@ def _execute_and_serialize(pipeline: list[dict]) -> str:
     return _dumps(results)
 
 
-def _vector_search(query, max_price, size, waterproof, eco_friendly, category) -> str:
+def _vector_search(
+    query, max_price, size, waterproof, eco_friendly, category, rerank: bool = True
+) -> str:
     pre_filters = _build_filters(max_price, size, waterproof, eco_friendly, category)
     vector_stage: dict = {
         "index": mongo.VECTOR_INDEX_NAME,
         "path": "search_text",
         "query": query,
+        # Asymmetric retrieval: embed the query with a lighter/cheaper model than
+        # the corpus. Valid because Voyage 4 models share one embedding space.
+        "model": config.VOYAGE_QUERY_MODEL,
         "numCandidates": 200,
-        "limit": 5,
+        # When reranking, pull a candidate pool; the reranker then narrows to 5.
+        "limit": config.RERANK_CANDIDATES if rerank else 5,
     }
     if pre_filters:
         vector_stage["filter"] = {"$and": pre_filters}
-    pipeline = [
+
+    pipeline: list[dict] = [
         {"$vectorSearch": vector_stage},
-        {"$addFields": {"score": {"$meta": "vectorSearchScore"}}},
+        {"$addFields": {"vectorScore": {"$meta": "vectorSearchScore"}}},
+    ]
+    if rerank:
+        # Native reranking ($rerank): reorder the candidates in-pipeline with a
+        # Voyage reranker — no external API call, no round-trip.
+        pipeline += [
+            {
+                "$rerank": {
+                    "model": config.RERANK_MODEL,
+                    "query": {"text": query},
+                    "path": ["name", "description", "brand"],
+                    "numDocsToRerank": config.RERANK_CANDIDATES,
+                }
+            },
+            {"$addFields": {"rerankScore": {"$meta": "score"}}},
+        ]
+    pipeline += [
+        {"$limit": 5},
         {"$project": {"_id": 0, "search_text": 0}},
     ]
     return _execute_and_serialize(pipeline)
@@ -165,10 +192,22 @@ def search_products(
     }
     error = None
     try:
+        # Preferred path: asymmetric vector search + native reranking. Degrade
+        # gracefully so the demo stays alive if native reranking isn't enabled
+        # (Preview) or the index hasn't been migrated to the Voyage 4 models.
         try:
-            result = _vector_search(query, max_price, size, waterproof, eco_friendly, category)
-        except Exception as e:  # noqa: BLE001 — vector search unavailable → text fallback
-            result = _text_search(query, max_price, size, waterproof, eco_friendly, category)
+            result = _vector_search(
+                query, max_price, size, waterproof, eco_friendly, category, rerank=True
+            )
+        except Exception as rerank_err:  # noqa: BLE001
+            log.warning("Vector+rerank failed (%s); retrying vector-only", rerank_err)
+            try:
+                result = _vector_search(
+                    query, max_price, size, waterproof, eco_friendly, category, rerank=False
+                )
+            except Exception as vec_err:  # noqa: BLE001
+                log.warning("Vector search failed (%s); falling back to text search", vec_err)
+                result = _text_search(query, max_price, size, waterproof, eco_friendly, category)
     except Exception as e:  # noqa: BLE001
         error = str(e)
         result = '{"error": "Product search failed"}'

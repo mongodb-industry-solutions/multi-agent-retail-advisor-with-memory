@@ -10,12 +10,22 @@ const VECTOR_PIPELINE = `{
     "index": "product_vector_index",
     "path": "search_text",
     "query": "<user query>",
+    "model": "voyage-4-lite",
     "numCandidates": 200,
-    "limit": 5,
+    "limit": 25,
     "filter": {
       "price": { "$lte": 150 },
       "category": "hiking_boots"
     }
+  }
+}`;
+
+const RERANK_PIPELINE = `{
+  "$rerank": {
+    "model": "rerank-2.5",
+    "query": { "text": "<user query>" },
+    "path": ["name", "description", "brand"],
+    "numDocsToRerank": 25
   }
 }`;
 
@@ -40,7 +50,9 @@ export function SearchVectorTab() {
   return (
     <div className="p-6 space-y-5">
       <p className="text-sm text-gray-700">
-        Semantic search and full-text search. Same collection. Zero extra infrastructure. Automatic fallback.
+        Semantic search, native reranking, and full-text search — same collection, zero extra
+        infrastructure, automatic fallback. Queries embed with the lighter <code>voyage-4-lite</code>{" "}
+        model, then a <code>$rerank</code> stage reorders the candidates for top-end accuracy.
       </p>
 
       {/* Flow diagram — image or inline fallback */}
@@ -60,9 +72,14 @@ export function SearchVectorTab() {
 
       {/* Stacked pipelines */}
       <div className="space-y-2">
-        <Description className="uppercase tracking-wide text-gray-500">Primary — Vector Search</Description>
+        <Description className="uppercase tracking-wide text-gray-500">Primary — Vector Search (asymmetric)</Description>
         <div className="overflow-auto">
           <Code language="json" showLineNumbers>{VECTOR_PIPELINE}</Code>
+        </div>
+
+        <Description className="uppercase tracking-wide text-gray-500">Then — Native Reranking</Description>
+        <div className="overflow-auto">
+          <Code language="json" showLineNumbers>{RERANK_PIPELINE}</Code>
         </div>
 
         <div className="flex items-center gap-3 py-1">
@@ -81,6 +98,12 @@ export function SearchVectorTab() {
           <Code language="json" showLineNumbers>{TEXT_PIPELINE}</Code>
         </div>
       </div>
+
+      <Callout variant="note" title="Native reranking — inside the database">
+        The <code>$rerank</code> stage runs a Voyage reranker (rerank-2.5) directly in the
+        aggregation pipeline — no external API, no round-trip. It reorders the vector-search
+        candidates by true relevance before the agent ever sees them.
+      </Callout>
 
       <Callout variant="tip">
         The fallback is automatic — the agent never knows the difference, and your data never moves.

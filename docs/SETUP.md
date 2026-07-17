@@ -24,8 +24,16 @@ MONGODB_DATABASE=<your-database-name>
 # LLM API (Anthropic-compatible endpoint + key)
 LLM_API_KEY=<your-llm-api-key>
 LLM_BASE_URL=<your-llm-base-url>
-ANTHROPIC_MODEL=<your-model-id>
+LLM_MODEL=<your-model-id>          # e.g. claude-sonnet-4-5 (or prefixed openai/gpt-4o).
+                                   # Legacy ANTHROPIC_MODEL still works as a fallback.
+
+# Optional — retrieval models (defaults shown). Voyage 4 asymmetric embedding + native reranking.
+# VOYAGE_DOC_MODEL=voyage-4-large    # embeds the catalog (also read by seed.py)
+# VOYAGE_QUERY_MODEL=voyage-4-lite   # embeds queries at run time (cheaper)
+# RERANK_MODEL=rerank-2.5
 ```
+
+> **Native reranking prerequisites:** an Atlas cluster on **MongoDB 8.3+** (Latest version with auto-upgrades) with **Native Reranking** enabled under Project Settings (Preview). If reranking isn't enabled, the demo still runs — `search_products` degrades to vector-only, then text search.
 
 ---
 
