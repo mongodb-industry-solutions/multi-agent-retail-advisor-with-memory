@@ -24,11 +24,8 @@ LLM_API_KEY: str = os.environ.get("LLM_API_KEY", "")
 LLM_BASE_URL: str = os.environ.get("LLM_BASE_URL", "")
 # Provider-agnostic chat model. If the value carries a provider prefix
 # (e.g. "openai/gpt-4o"), build_model uses it verbatim; otherwise it is treated
-# as an Anthropic model. LLM_MODEL supersedes the legacy ANTHROPIC_MODEL, which
-# is still honored as a fallback so existing .env files keep working.
-LLM_MODEL: str = os.environ.get("LLM_MODEL") or os.environ.get(
-    "ANTHROPIC_MODEL", "claude-sonnet-4-5"
-)
+# as an Anthropic model.
+LLM_MODEL: str = os.environ.get("LLM_MODEL", "claude-sonnet-4-5")
 
 # --- Retrieval models (Voyage 4 asymmetric embedding + native reranking) ---
 # Documents are embedded once with the flagship model; on-the-run queries use a
