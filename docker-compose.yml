@@ -1,20 +1,81 @@
+# Multi-agent retail advisor — real A2A topology.
+#
+#   frontend ─http─> orchestrator ─A2A─> planner ─A2A─> {profile, product}
+#
+# Every agent is an independent A2A service publishing its own
+# /.well-known/agent-card.json and speaking JSON-RPC 2.0. All four backend
+# services share one image (see backend/Dockerfile) with a different command.
+# MongoDB Atlas is the shared agentic data plane (external; creds in backend/.env).
+
 services:
-  backend:
+  profile-agent-service:
+    image: retail-advisor-backend:latest
     build:
       context: ./backend
-    ports:
-      - "8080:8080"
+    command: uvicorn app.services.profile_server:app --host 0.0.0.0 --port 9091
+    environment:
+      - A2A_HOST=profile-agent-service
+      - PROFILE_AGENT_PORT=9091
     env_file:
       - ./backend/.env
+    ports:
+      - "9091:9091"
+
+  product-agent-service:
+    image: retail-advisor-backend:latest
+    build:
+      context: ./backend
+    command: uvicorn app.services.product_server:app --host 0.0.0.0 --port 9092
+    environment:
+      - A2A_HOST=product-agent-service
+      - PRODUCT_AGENT_PORT=9092
+    env_file:
+      - ./backend/.env
+    ports:
+      - "9092:9092"
+
+  planner-agent-service:
+    image: retail-advisor-backend:latest
+    build:
+      context: ./backend
+    command: uvicorn app.services.planner_server:app --host 0.0.0.0 --port 8081
+    environment:
+      - A2A_HOST=planner-agent-service
+      - PLANNER_AGENT_PORT=8081
+      - PROFILE_AGENT_URL=http://profile-agent-service:9091
+      - PRODUCT_AGENT_URL=http://product-agent-service:9092
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8081:8081"
+    depends_on:
+      - profile-agent-service
+      - product-agent-service
+
+  orchestrator:
+    image: retail-advisor-backend:latest
+    build:
+      context: ./backend
+    command: uvicorn app.services.orchestrator:app --host 0.0.0.0 --port 8080
+    environment:
+      - PLANNER_AGENT_URL=http://planner-agent-service:8081
+      - PROFILE_AGENT_URL=http://profile-agent-service:9091
+      - PRODUCT_AGENT_URL=http://product-agent-service:9092
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8080:8080"
+    depends_on:
+      - planner-agent-service
 
   frontend:
     build:
       context: ./frontend
       args:
-        - BACKEND_URL=http://backend:8080
+        - BACKEND_URL=http://orchestrator:8080
     environment:
-      - BACKEND_URL=http://backend:8080
+      - BACKEND_URL=http://orchestrator:8080
     ports:
       - "3000:3000"
     depends_on:
-      - backend
+      - orchestrator

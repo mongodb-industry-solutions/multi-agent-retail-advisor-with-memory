@@ -5,146 +5,149 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 A retail product advisor **multi-agent demo** showcasing:
-- **Google ADK** (Agent Development Kit) orchestration with tool delegation
-- **A2A** (Agent-to-Agent) discovery via AgentCards
-- **MongoDB Atlas as the agentic data plane** — all persistence lives there: product catalog, user profiles, long-term memory, session history, agent orchestration state, and tool audit logs
-- **Anthropic** as LLM, accessed via an Azure API Management gateway
+- **Google ADK (Python)** orchestration with a Planner delegating to specialist sub-agents
+- **Real A2A (Agent-to-Agent) protocol** — each agent is an independent service that publishes a spec-compliant AgentCard at `/.well-known/agent-card.json` and communicates over **JSON-RPC 2.0**. Agents talk over the network, not via in-process calls.
+- **MongoDB Atlas as the agentic data plane** — product catalog, user profiles, long-term memory, session history, orchestration state, and tool audit logs all live there
+- **Anthropic** as the LLM, via LiteLLM through an Azure API Management gateway
 
-The backend is Java/Spring Boot; the frontend is Next.js. Both run together via Docker Compose.
+The backend is Python (FastAPI + ADK + a2a-sdk); the frontend is Next.js. Everything runs via Docker Compose.
+
+## Topology
+
+Five services (see `docker-compose.yml`). Every agent hop is a real A2A JSON-RPC call:
+
+```
+frontend (:3000) → orchestrator (:8080) --A2A--> planner (:8081) --A2A--> profile (:9091)
+                                                                    └----A2A--> product (:9092)
+```
+
+- **orchestrator** (`app.services.orchestrator`) — FastAPI, the frontend-facing `/api/*` REST API + MongoDB bookkeeping. An A2A *client* of the planner.
+- **planner-agent-service** (`app.services.planner_server`) — PlannerAgent exposed via A2A; the external A2A entrypoint.
+- **profile-agent-service** (`app.services.profile_server`) — ProfileAgent via A2A.
+- **product-agent-service** (`app.services.product_server`) — ProductAgent via A2A.
+
+All four backend services share one image (`backend/Dockerfile`) run with different uvicorn targets.
 
 ## Commands
 
 ### Running the stack
 
 ```bash
-# Start everything
 docker compose up -d
-
-# Rebuild backend after Java changes
-docker compose build backend && docker compose up -d backend
-
-# Watch logs
-docker compose logs -f backend
-docker compose logs -f
-
-# Stop
+docker compose logs -f orchestrator
+docker compose build && docker compose up -d      # rebuild after code changes
 docker compose down
 ```
 
-### Backend (Maven)
+### Local dev (no Docker)
 
 ```bash
 cd backend
-mvn package -DskipTests        # Build JAR
-mvn package                    # Build + run tests
-mvn test -Dtest=ClassName      # Run a single test class
-```
+python3.13 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+# each server reads backend/.env; 
+# run in separate terminals:
+cd backend
+source .venv/bin/activate
+uvicorn app.services.profile_server:app --port 9091
 
-### Frontend (npm)
+cd backend
+source .venv/bin/activate
+uvicorn app.services.product_server:app --port 9092
 
-```bash
+cd backend
+source .venv/bin/activate
+uvicorn app.services.planner_server:app --port 8081
+
+cd backend
+source .venv/bin/activate
+uvicorn app.services.orchestrator:app  --port 8080
+
+# frontend (5th terminal) — proxies /api/* to localhost:8080
 cd frontend
-npm run dev      # Dev server with hot reload (port 3000)
-npm run build    # Production build
-npm start        # Serve production build
+npm install    # first run only
+npm run dev
 ```
 
 ### Data Seeding
 
 ```bash
-# Requires Python + pip install "pymongo[srv]>=4.6" python-dotenv
-python helpers/seed.py          # first run
-python helpers/seed.py --force  # replace catalog (drops products collection)
+pip install -r helpers/requirements.txt
+python helpers/seed.py            # first run
+python helpers/seed.py --force    # replace catalog
 ```
 
 Only needed once — all data lives in MongoDB afterwards.
 
 ## Environment Setup
 
-Copy `backend/.env.example` to `backend/.env` and fill in:
+`backend/.env` holds secrets (see `backend/.env.example`):
 
 | Variable | Description |
 |---|---|
 | `MONGODB_URI` | Atlas connection string |
-| `MONGODB_DATABASE` | Database name (e.g. `retail_advisor_demo`) |
+| `MONGODB_DATABASE` | Database name |
 | `LLM_API_KEY` | Azure API Management key for Claude |
-| `LLM_BASE_URL` | Azure gateway URL (not a direct Anthropic URL) |
-| `ANTHROPIC_MODEL` | Model ID (e.g. `claude-sonnet-4-5`) |
+| `LLM_BASE_URL` | Azure gateway URL |
+| `LLM_MODEL` | Chat model, e.g. `claude-sonnet-4-5` (or a prefixed `openai/gpt-4o`). |
+| `VOYAGE_DOC_MODEL` / `VOYAGE_QUERY_MODEL` | Optional. Corpus vs query embedding models (default `voyage-4-large` / `voyage-4-lite`). |
+| `RERANK_MODEL` | Optional. Native reranker (default `rerank-2.5`). |
 
-**Note on LLM headers:** The Azure API Management gateway requires `api-key` header instead of the standard `x-api-key`. This custom injection is wired in `AppConfig.java`.
+The A2A topology vars (`PLANNER_AGENT_URL`, `PROFILE_AGENT_URL`, `PRODUCT_AGENT_URL`, `A2A_HOST`, ports) are injected per service by `docker-compose.yml`; locally they default to loopback (`app/common/config.py`).
+
+**LLM header note:** the Azure gateway needs an `api-key` header instead of the standard `x-api-key`. `app/common/model.py` sends a placeholder api key and injects the real credential via LiteLLM `extra_headers`. If the gateway URL already includes `/v1/messages`, set `LITELLM_ANTHROPIC_DISABLE_URL_SUFFIX=true`.
 
 ## Architecture
 
-### Request Flow
+### Backend package structure (`backend/app/`)
 
 ```
-POST /api/chat
-    └─> WorkflowOrchestrator
-            ├─ Creates session doc + agent_state doc in MongoDB
-            └─> PlannerAgent (Google ADK InMemoryRunner via RxJava)
-                    ├─> ProfileAgent
-                    │       ├─ GetUserProfileTool    → users collection
-                    │       ├─ GetUserMemoryTool     → user_memory collection
-                    │       └─ UpdateUserMemoryTool  → user_memory collection (upsert)
-                    └─> ProductAgent
-                            └─ SearchProductsTool    → products collection
-                                                       (vector search → text fallback)
-            └─ Writes all tool calls to tool_invocations collection
-            └─ Returns {reply, sessionId, toolCallCount}
+app/
+├── common/          # framework-neutral shared layer
+│   ├── config.py    # env-driven configuration
+│   ├── mongo.py     # PyMongo client + collection names + repositories
+│   ├── model.py     # LiteLlm(Anthropic) factory (Azure gateway header)
+│   ├── tools.py     # the 4 ADK tools (search_products + 3 profile/memory tools)
+│   ├── context.py   # contextvar carrying session_id across the request
+│   └── a2a.py       # httpx client that forwards X-Session-Id downstream
+├── agents/          # ADK agent definitions
+│   ├── product_agent.py   # LlmAgent + search_products
+│   ├── profile_agent.py   # LlmAgent + memory tools
+│   └── planner_agent.py   # LlmAgent whose tools are RemoteA2aAgents (A2A client)
+└── services/        # deployable ASGI apps (uvicorn targets)
+    ├── orchestrator.py         # FastAPI: /api/* + calls planner over A2A
+    ├── planner_server.py       # to_a2a(planner)
+    ├── profile_server.py       # to_a2a(profile)
+    ├── product_server.py       # to_a2a(product)
+    └── session_middleware.py   # pure-ASGI: X-Session-Id header → contextvar
 ```
 
-### Backend Package Structure
+### Request flow
 
-```
-com.mongodb.demo.retail/
-├── agents/          # PlannerAgent, ProductAgent, ProfileAgent, AgentCard, AgentRegistry
-├── tools/           # SearchProductsTool, GetUserProfileTool, GetUserMemoryTool, UpdateUserMemoryTool
-├── controller/      # ChatController, TraceController, AgentCardController
-├── orchestration/   # WorkflowOrchestrator — the central coordinator
-├── mongodb/         # SessionRepository, AgentStateRepository, ToolInvocationRepository, MongoCollections
-├── service/         # AnthropicService (LLM streaming utilities)
-├── config/          # AppConfig (Spring beans, Azure client), AgentContext (thread-local session ID)
-└── model/           # ChatRequest, ChatResponse, TraceResponse
-```
+`POST /api/chat` → orchestrator writes `sessions` + `agent_state`, sets the `session_id` contextvar, then runs a `RemoteA2aAgent(planner)` via an ADK `Runner`. The planner (in its own service) fans out to Profile and Product over A2A. Each specialist tool writes to `tool_invocations`. The orchestrator counts them and completes `agent_state`.
 
 ### MongoDB Collections
 
 | Collection | Purpose |
 |---|---|
-| `products` | Catalog with `search_text` field auto-embedded by Atlas Vector Search |
+| `products` | Catalog with `search_text` auto-embedded by Atlas Vector Search |
 | `users` | User preferences, sizes, favorite brands |
 | `user_memory` | Long-term facts the agents learn per user |
 | `sessions` | Full conversation history per sessionId |
-| `agent_state` | Workflow lifecycle: `initializing → executing → completed/failed` |
+| `agent_state` | Workflow lifecycle: running → completed/failed |
 | `tool_invocations` | Audit log: every tool call with input, output, latency_ms |
 
 ### Search Indexes Required in Atlas
 
-- **Vector index** `product_vector_index` on `products.search_text` — type `text`, model `voyage-3-large` (Atlas Auto-Embeddings, M10+ required)
+- **Vector index** `product_vector_index` on `products.search_text` — Atlas Auto-Embeddings, `autoEmbed` type with `voyage-4-large` (docs); queries embed with `voyage-4-lite` via the `$vectorSearch` `model` override (M10+ required)
 - **Text index** `product_text_index` on `products` (name, description, brand, category, search_text)
 
-`helpers/seed.py` creates both indexes automatically. Atlas vectorizes documents in the background (~1–2 min after seeding).
-
-### Frontend
-
-Next.js app on port 3000 proxies to backend on port 8080. Main page (`/chat`) has a split layout: chat panel (55%) + debug panel (45%) with Agents/Trace/MongoDB tabs.
-
-- `app/chat/page.tsx` — main UI
-- `app/components/AgentCards.tsx` — renders A2A capability cards from `GET /api/agents`
-- `app/components/TracePanel.tsx` — expandable tool invocation viewer
-- `app/lib/api.ts` — typed fetch wrappers for all backend endpoints
-
-### REST API Endpoints
-
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/chat` | Send `{userId, message, sessionId?}`, get `{reply, sessionId, toolCallCount}` |
-| `GET` | `/api/trace/{sessionId}` | Full trace: session history + agent state + tool invocations |
-| `GET` | `/api/agents` | A2A agent discovery — returns all AgentCards |
+`helpers/seed.py` creates both automatically.
 
 ### Key Design Decisions
 
-- **AgentContext** is a thread-local that carries `sessionId` into every tool so tool audit logs can be correlated without passing session state through every method signature.
-- **SearchProductsTool** tries vector search first, falls back to text search automatically on failure.
-- **PlannerAgent** calls ProfileAgent and ProductAgent as sub-agents via `AgentTool` — Google ADK handles the inner agent execution loop.
-- All agent state transitions are persisted to MongoDB so the trace endpoint can reconstruct the full execution history.
+- **Every agent is an independent A2A service.** `to_a2a(agent, ...)` (ADK) turns each `LlmAgent` into a Starlette app that serves its card at `/.well-known/agent-card.json` and handles `message/send` over JSON-RPC. The planner consumes the specialists with ADK's `RemoteA2aAgent` (which resolves the well-known card and calls it).
+- **Session correlation across processes.** Since tools run in separate services from the planner, the originating `session_id` rides an `X-Session-Id` HTTP header (injected by `common/a2a.py` from a contextvar, read back by `session_middleware.py`). Tools stamp `tool_invocations` with it so the trace endpoint reconstructs the whole cross-service run.
+- **Tools are synchronous** functions so ADK offloads them to a worker thread, keeping the sync PyMongo calls off the event loop.
+- **`search_products`** (`common/tools.py`) uses Voyage 4 asymmetric embedding (docs `voyage-4-large`, queries `voyage-4-lite`) + a native `$rerank` (`rerank-2.5`) stage, then degrades gracefully: vector+rerank → vector-only → `$search` text. Native reranking requires MongoDB 8.3+ with the Native Reranking Preview enabled; after changing the embedding model, re-seed with `python helpers/seed.py --force`.
+- The **orchestrator preserves the exact REST contract** the frontend depends on (`/api/chat`, `/api/trace`, `/api/agents`, `/api/profile`, `/api/sessions`); the frontend is unchanged by the rewrite.

@@ -18,6 +18,8 @@ frontend/tsconfig.tsbuildinfo
 helpers/__pycache__/
 helpers/*.pyc
 backend/venv/
+backend/.venv/
+.venv/
 __pycache__/
 *.pyc
 

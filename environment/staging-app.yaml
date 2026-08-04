@@ -1,0 +1,58 @@
+# frontend (main container) + orchestrator (sidecar) — release: multi-agent-retail-advisor
+security:
+  dataClassification: "Internal"
+  dataDesignation: ["MI"]
+
+ownership:
+  driEmail: alberto.camarena@mongodb.com
+
+env:
+  NODE_ENV: staging
+  AWS_REGION: us-east-1
+  # Same pod as the orchestrator sidecar — reach it over loopback.
+  BACKEND_URL: http://localhost:8080
+
+envSecrets: {}
+
+## Orchestrator sidecar — talks to the 3 standalone specialist releases below over
+## their in-cluster Service DNS. NOTE: assumes chart Service naming "<release>-web-app"
+## on port 80 — confirm with `kubectl get svc -n industrysolutions` and adjust if needed.
+sidecarContainers:
+  - name: orchestrator
+    image: 795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend:latest
+    env:
+      - name: SERVICE
+        value: orchestrator
+      - name: PLANNER_AGENT_URL
+        value: http://multi-agent-retail-advisor-planner-web-app:80
+      - name: PROFILE_AGENT_URL
+        value: http://multi-agent-retail-advisor-profile-web-app:80
+      - name: PRODUCT_AGENT_URL
+        value: http://multi-agent-retail-advisor-product-web-app:80
+      - name: MONGODB_DATABASE
+        value: multi-agent-retail-advisor
+      - name: LLM_MODEL
+        value: claude-sonnet-4-5
+      # Bundled into one secret group for simplicity, even though LLM_BASE_URL isn't
+      # itself sensitive — see "helm ksec set" in KANOPY_DEPLOYMENT_README.md.
+      - name: MONGODB_URI
+        valueFrom:
+          secretKeyRef:
+            name: multi-agent-retail-advisor-secrets
+            key: MONGODB_URI
+      - name: LLM_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: multi-agent-retail-advisor-secrets
+            key: LLM_API_KEY
+      - name: LLM_BASE_URL
+        valueFrom:
+          secretKeyRef:
+            name: multi-agent-retail-advisor-secrets
+            key: LLM_BASE_URL
+
+serviceAccount:
+  enabled: true
+  irsa:
+    accountId: "275662791714"
+    roleName: "kanopy-staging-cicd-irsa"

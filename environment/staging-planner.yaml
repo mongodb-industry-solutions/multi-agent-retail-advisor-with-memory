@@ -1,0 +1,31 @@
+# planner-agent-service, standalone pod — release: multi-agent-retail-advisor-planner
+security:
+  dataClassification: "Internal"
+  dataDesignation: ["MI"]
+
+ownership:
+  driEmail: alberto.camarena@mongodb.com
+
+env:
+  AWS_REGION: us-east-1
+  SERVICE: planner
+  PLANNER_AGENT_PORT: "8081"
+  # Advertised in this agent's own A2A card `url` — the DNS name other
+  # releases dial back on. NOTE: assumes chart Service naming
+  # "<release>-web-app" — confirm with `kubectl get svc -n industrysolutions`.
+  A2A_HOST: multi-agent-retail-advisor-planner-web-app
+  PROFILE_AGENT_URL: http://multi-agent-retail-advisor-profile-web-app:80
+  PRODUCT_AGENT_URL: http://multi-agent-retail-advisor-product-web-app:80
+  MONGODB_DATABASE: multi-agent-retail-advisor
+  LLM_MODEL: claude-sonnet-4-5
+
+envSecrets:
+  MONGODB_URI: multi-agent-retail-advisor-secrets
+  LLM_API_KEY: multi-agent-retail-advisor-secrets
+  LLM_BASE_URL: multi-agent-retail-advisor-secrets
+
+serviceAccount:
+  enabled: true
+  irsa:
+    accountId: "275662791714"
+    roleName: "kanopy-staging-cicd-irsa"

@@ -7,9 +7,10 @@ import { palette } from "@leafygreen-ui/palette";
 const INDEX_DEFINITION = `{
   "fields": [
     {
-      "type": "text",
+      "type": "autoEmbed",
+      "modality": "text",
       "path": "search_text",
-      "model": "voyage-3-large"
+      "model": "voyage-4-large"
     },
     { "type": "filter", "path": "price" },
     { "type": "filter", "path": "size_options" },
@@ -88,13 +89,14 @@ export function AutoEmbeddingTab() {
       {/* Explanation note */}
       <div className="rounded-lg px-4 py-3 space-y-1.5 text-sm text-gray-700" style={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0" }}>
         <p>
-          The <InlineCode>&quot;type&quot;: &quot;text&quot;</InlineCode> field on{" "}
+          The <InlineCode>&quot;type&quot;: &quot;autoEmbed&quot;</InlineCode> field on{" "}
           <InlineCode>search_text</InlineCode> is what activates auto-embedding.
         </p>
         <p>
           The <InlineCode>&quot;filter&quot;</InlineCode> fields are what make structured filters
           (price, size, waterproof, etc.) work inside <InlineCode>$vectorSearch</InlineCode> — those
-          map directly to the filter conditions in <InlineCode>SearchProductsTool.java</InlineCode>.
+          map directly to the filter conditions in <InlineCode>search_products</InlineCode>{" "}
+          (<InlineCode>backend/app/common/tools.py</InlineCode>).
         </p>
       </div>
 
@@ -112,8 +114,9 @@ export function AutoEmbeddingTab() {
       <div className="rounded-lg px-4 py-3" style={{ backgroundColor: palette.green.light3, border: `1px solid ${palette.green.light2}` }}>
         <Body style={{ color: palette.green.dark2 }}>
           In this demo: the <InlineCode>search_text</InlineCode> field on every product is
-          auto-embedded by Atlas using <InlineCode>voyage-3-large</InlineCode>. The Spring Boot app
-          never calls an embedding API.
+          auto-embedded by Atlas using <InlineCode>voyage-4-large</InlineCode> (the flagship model);
+          queries are embedded with the lighter <InlineCode>voyage-4-lite</InlineCode>. The Python
+          service never calls an embedding API.
         </Body>
       </div>
     </div>

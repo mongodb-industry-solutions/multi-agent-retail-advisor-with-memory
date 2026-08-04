@@ -1,0 +1,32 @@
+# product-agent-service, standalone pod — release: multi-agent-retail-advisor-product
+security:
+  dataClassification: "Internal"
+  dataDesignation: ["MI"]
+
+ownership:
+  driEmail: alberto.camarena@mongodb.com
+
+env:
+  AWS_REGION: us-east-1
+  SERVICE: product
+  PRODUCT_AGENT_PORT: "9092"
+  # Advertised in this agent's own A2A card `url` — the DNS name other releases
+  # (the planner) dial back on. NOTE: assumes chart Service naming
+  # "<release>-web-app" — confirm with `kubectl get svc -n industrysolutions`.
+  A2A_HOST: multi-agent-retail-advisor-product-web-app
+  MONGODB_DATABASE: multi-agent-retail-advisor
+  LLM_MODEL: claude-sonnet-4-5
+  VOYAGE_DOC_MODEL: voyage-4-large
+  VOYAGE_QUERY_MODEL: voyage-4-lite
+  RERANK_MODEL: rerank-2.5
+
+envSecrets:
+  MONGODB_URI: multi-agent-retail-advisor-secrets
+  LLM_API_KEY: multi-agent-retail-advisor-secrets
+  LLM_BASE_URL: multi-agent-retail-advisor-secrets
+
+serviceAccount:
+  enabled: true
+  irsa:
+    accountId: "275662791714"
+    roleName: "kanopy-staging-cicd-irsa"

@@ -429,6 +429,8 @@ export default function ChatPage() {
                   borderRadius: "10px",
                   marginRight: "10px",
                   width: "100%",
+                  color: "#001E2B",
+                  backgroundColor: "#ffffff",
                 }}
               />
             </div>
