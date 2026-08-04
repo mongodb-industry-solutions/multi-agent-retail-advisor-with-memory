@@ -14,13 +14,13 @@ Run: ``uvicorn app.services.orchestrator:app --host 0.0.0.0 --port 8080``
 """
 from __future__ import annotations
 
+import asyncio
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any, Optional
 
 import anyio
-import httpx
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from google.adk.agents.remote_a2a_agent import AGENT_CARD_WELL_KNOWN_PATH, RemoteA2aAgent
@@ -48,19 +48,31 @@ _runner = Runner(app_name=APP_NAME, agent=_remote_planner, session_service=_sess
 
 
 async def _run_planner(input_text: str, user_id: str) -> str:
-    """Run the remote Planner via A2A and return its final synthesized text."""
+    """Run the remote Planner via A2A and return its final synthesized text.
+
+    RemoteA2aAgent swallows A2A-level failures (e.g. the planner service being
+    unreachable) into an ``Event.error_message`` instead of raising, so we
+    re-raise here — otherwise a downed specialist would silently produce a
+    generic reply while the caller's except block (and therefore
+    ``fail_agent_state``) never runs.
+    """
     session = await _session_service.create_session(app_name=APP_NAME, user_id=user_id)
     final: Optional[str] = None
+    last_error: Optional[str] = None
     async for event in _runner.run_async(
         user_id=user_id,
         session_id=session.id,
         new_message=types.Content(role="user", parts=[types.Part(text=input_text)]),
     ):
+        if event.error_message:
+            last_error = event.error_message
         if event.is_final_response() and event.content and event.content.parts:
             text = event.content.parts[0].text
             if text and text.strip():
                 final = text.strip()
-    return final or "I was unable to generate a response."
+    if final is None:
+        raise RuntimeError(last_error or "Planner returned no final response.")
+    return final
 
 
 # --- API models (mirror the Java records / frontend TS interfaces) ---------
@@ -113,16 +125,19 @@ def _begin_chat(session_id: str, user_id: str, message: str) -> None:
     mongo.update_step(session_id, "planning")
 
 
-def _finish_chat(session_id: str, reply: str) -> int:
+def _finish_chat(session_id: str, reply: str, failed: bool) -> int:
     mongo.append_message(session_id, "assistant", reply)
     tool_count = len(mongo.find_tool_invocations(session_id))
-    mongo.complete_agent_state(
-        session_id,
-        {
-            "tool_calls": tool_count,
-            "agents_invoked": ["PlannerAgent", "ProductAgent", "ProfileAgent"],
-        },
-    )
+    # Don't overwrite a "failed" agent_state with "completed" — the trace
+    # endpoint must keep reporting the failure for this run.
+    if not failed:
+        mongo.complete_agent_state(
+            session_id,
+            {
+                "tool_calls": tool_count,
+                "agents_invoked": ["PlannerAgent", "ProductAgent", "ProfileAgent"],
+            },
+        )
     return tool_count
 
 
@@ -138,6 +153,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
     # Stamp the session id so the A2A client forwards it downstream (X-Session-Id),
     # letting the specialist tools correlate their tool_invocations to this session.
     token = context.set_session_id(session_id)
+    failed = False
     try:
         await anyio.to_thread.run_sync(mongo.update_step, session_id, "executing")
         reply = await _run_planner(full_input, req.userId)
@@ -145,10 +161,11 @@ async def chat(req: ChatRequest) -> ChatResponse:
     except Exception as e:  # noqa: BLE001
         await anyio.to_thread.run_sync(mongo.fail_agent_state, session_id, str(e))
         reply = "I'm sorry, I encountered an issue while processing your request. Please try again."
+        failed = True
     finally:
         context.reset_session_id(token)
 
-    tool_count = await anyio.to_thread.run_sync(_finish_chat, session_id, reply)
+    tool_count = await anyio.to_thread.run_sync(_finish_chat, session_id, reply, failed)
     return ChatResponse(reply=reply, sessionId=session_id, toolCallCount=tool_count)
 
 
@@ -161,23 +178,31 @@ def get_trace(session_id: str) -> dict:
     }
 
 
+async def _fetch_card(base_url: str) -> Optional[dict]:
+    try:
+        resp = await _httpx_client.get(f"{base_url}{AGENT_CARD_WELL_KNOWN_PATH}", timeout=5.0)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception:  # noqa: BLE001 — a specialist may be starting up
+        return None
+
+
 @app.get("/api/agents")
-def list_agents() -> list[dict]:
+async def list_agents() -> list[dict]:
     """A2A discovery: fetch each agent's real, spec-shaped card from its
-    well-known endpoint and adapt it to the shape the frontend renders."""
-    cards: list[dict] = []
-    for base_url in (
-        config.PLANNER_AGENT_URL,
-        config.PROFILE_AGENT_URL,
-        config.PRODUCT_AGENT_URL,
-    ):
-        try:
-            resp = httpx.get(f"{base_url}{AGENT_CARD_WELL_KNOWN_PATH}", timeout=5.0)
-            resp.raise_for_status()
-            cards.append(_adapt_card(resp.json()))
-        except Exception:  # noqa: BLE001 — a specialist may be starting up
-            continue
-    return cards
+    well-known endpoint (concurrently) and adapt it to the shape the frontend
+    renders."""
+    raw_cards = await asyncio.gather(
+        *(
+            _fetch_card(base_url)
+            for base_url in (
+                config.PLANNER_AGENT_URL,
+                config.PROFILE_AGENT_URL,
+                config.PRODUCT_AGENT_URL,
+            )
+        )
+    )
+    return [_adapt_card(card) for card in raw_cards if card is not None]
 
 
 def _card_endpoint(card: dict) -> str:
