@@ -25,7 +25,6 @@ MONGODB_DATABASE=<your-database-name>
 LLM_API_KEY=<your-llm-api-key>
 LLM_BASE_URL=<your-llm-base-url>
 LLM_MODEL=<your-model-id>          # e.g. claude-sonnet-4-5 (or prefixed openai/gpt-4o).
-                                   # Legacy ANTHROPIC_MODEL still works as a fallback.
 
 # Optional — retrieval models (defaults shown). Voyage 4 asymmetric embedding + native reranking.
 # VOYAGE_DOC_MODEL=voyage-4-large    # embeds the catalog (also read by seed.py)
@@ -101,13 +100,43 @@ python helpers/seed.py
 
 ### Local dev without Docker
 
+One-time setup:
+
 ```bash
 cd backend
 python3.13 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-# In four terminals (each reads backend/.env):
+```
+
+Then run each backend service in its own terminal. The venv activation is per-shell, so **every terminal** needs it (each server reads `backend/.env`):
+
+```bash
+# Terminal 1
+cd backend && source .venv/bin/activate
 uvicorn app.services.profile_server:app --port 9091
+
+# Terminal 2
+cd backend && source .venv/bin/activate
 uvicorn app.services.product_server:app --port 9092
+
+# Terminal 3
+cd backend && source .venv/bin/activate
 uvicorn app.services.planner_server:app --port 8081
+
+# Terminal 4
+cd backend && source .venv/bin/activate
 uvicorn app.services.orchestrator:app  --port 8080
 ```
+
+Finally, start the frontend in a fifth terminal:
+
+```bash
+# Terminal 5
+cd frontend
+npm install    # first run only
+npm run dev
+```
+
+The frontend proxies `/api/*` to `BACKEND_URL` (defaults to `http://localhost:8080`, the local orchestrator), so no extra configuration is needed. Open `http://localhost:3000`.
+
+> **Note:** don't mix this with `docker compose up` — the containers would collide with the local servers on the same ports.

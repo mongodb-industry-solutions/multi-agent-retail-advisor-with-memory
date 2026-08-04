@@ -45,11 +45,28 @@ docker compose down
 cd backend
 python3.13 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-# each server reads backend/.env; run in separate terminals:
+# each server reads backend/.env; 
+# run in separate terminals:
+cd backend
+source .venv/bin/activate
 uvicorn app.services.profile_server:app --port 9091
+
+cd backend
+source .venv/bin/activate
 uvicorn app.services.product_server:app --port 9092
+
+cd backend
+source .venv/bin/activate
 uvicorn app.services.planner_server:app --port 8081
+
+cd backend
+source .venv/bin/activate
 uvicorn app.services.orchestrator:app  --port 8080
+
+# frontend (5th terminal) — proxies /api/* to localhost:8080
+cd frontend
+npm install    # first run only
+npm run dev
 ```
 
 ### Data Seeding
@@ -72,7 +89,7 @@ Only needed once — all data lives in MongoDB afterwards.
 | `MONGODB_DATABASE` | Database name |
 | `LLM_API_KEY` | Azure API Management key for Claude |
 | `LLM_BASE_URL` | Azure gateway URL |
-| `LLM_MODEL` | Chat model, e.g. `claude-sonnet-4-5` (or a prefixed `openai/gpt-4o`). Legacy `ANTHROPIC_MODEL` is still honored as a fallback. |
+| `LLM_MODEL` | Chat model, e.g. `claude-sonnet-4-5` (or a prefixed `openai/gpt-4o`). |
 | `VOYAGE_DOC_MODEL` / `VOYAGE_QUERY_MODEL` | Optional. Corpus vs query embedding models (default `voyage-4-large` / `voyage-4-lite`). |
 | `RERANK_MODEL` | Optional. Native reranker (default `rerank-2.5`). |
 
