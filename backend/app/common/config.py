@@ -15,7 +15,7 @@ load_dotenv()
 
 # --- MongoDB (the agentic data plane) ---
 MONGODB_URI: str = os.environ.get("MONGODB_URI", "")
-MONGODB_DATABASE: str = os.environ.get("MONGODB_DATABASE", "retail_advisor_demo")
+MONGODB_DATABASE: str = os.environ.get("MONGODB_DATABASE", "multi-agent-retail-advisor")
 
 # --- LLM gateway (Anthropic via Azure API Management) ---
 # The gateway requires an "api-key" header instead of the standard x-api-key;

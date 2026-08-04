@@ -31,7 +31,7 @@ ROOT = Path(__file__).parent.parent
 load_dotenv(ROOT / "backend" / ".env")
 
 MONGODB_URI      = os.environ.get("MONGODB_URI")
-MONGODB_DATABASE = os.environ.get("MONGODB_DATABASE", "retail_advisor_demo")
+MONGODB_DATABASE = os.environ.get("MONGODB_DATABASE", "multi-agent-retail-advisor")
 
 # Flagship Voyage 4 model used to embed the catalog (documents) once. Queries use
 # a lighter, cheaper model at run time (see VOYAGE_QUERY_MODEL in the backend).
