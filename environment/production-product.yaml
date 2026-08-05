@@ -9,10 +9,13 @@ ownership:
 env:
   AWS_REGION: us-east-1
   SERVICE: product
-  PRODUCT_AGENT_PORT: "9092"
-  # Advertised in this agent's own A2A card `url`. NOTE: assumes chart Service
-  # naming "<release>-web-app" — confirm with `kubectl get svc -n industrysolutions`.
-  A2A_HOST: multi-agent-retail-advisor-product-prod-web-app
+  # Kanopy-specific: listen on the chart's default port (8080) so no
+  # services[]/containerPort override is needed. Local/docker-compose keeps 9092.
+  PRODUCT_AGENT_PORT: "8080"
+  # Advertised in this agent's own A2A card `url`. This release has its own
+  # ingress (see .drone.yml), so use that public hostname — an external caller
+  # fetching /.well-known/agent-card.json gets a real, independently-reachable URL.
+  A2A_HOST: multi-agent-retail-advisor-product.industrysolutions.prod.corp.mongodb.com
   MONGODB_DATABASE: multi-agent-retail-advisor
   LLM_MODEL: claude-sonnet-4-5
   VOYAGE_DOC_MODEL: voyage-4-large

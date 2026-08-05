@@ -3,23 +3,25 @@
 # Our app has 5 services (frontend, orchestrator, planner, profile, product) but the
 # mongodb/web-app chart is built around "one release = one pod". We split them as:
 #   - "app" release:      frontend (main container) + orchestrator (sidecar, loopback-only)
-#   - "planner" release:  planner-agent-service, standalone pod/Service
-#   - "profile" release:  profile-agent-service, standalone pod/Service
-#   - "product" release:  product-agent-service, standalone pod/Service
+#   - "planner" release:  planner-agent-service, standalone pod/Service/ingress
+#   - "profile" release:  profile-agent-service, standalone pod/Service/ingress
+#   - "product" release:  product-agent-service, standalone pod/Service/ingress
 #
-# planner/profile/product each get their own Kubernetes Service so they stay
-# independently reachable/discoverable over the network (real A2A, not sealed
+# planner/profile/product each get their own Kubernetes Service + ingress so they
+# stay independently reachable/discoverable over the network (real A2A, not sealed
 # inside one pod) — see CLAUDE.md's "every agent hop is a real network call".
 #
 # Both the backend image (built once, reused 3x via the SERVICE env var — see
 # backend/docker-entrypoint.sh) and the frontend image are built from their existing
 # subdirectory Dockerfiles (no need to relocate them to the repo root).
 #
-# NOTE (open risk, see plan): PLANNER_AGENT_URL/PROFILE_AGENT_URL/PRODUCT_AGENT_URL/
-# A2A_HOST in environment/*.yaml assume the chart creates a Service named
-# "<release>-web-app" reachable on port 80. Confirm with `kubectl get svc -n
-# industrysolutions` after the first deploy and adjust environment/*.yaml if the
-# real Service name/port differs.
+# Port convention: every container listens on 8080 (the chart's own default) so we
+# never need to override `services[]`/`sidecarContainers[...].ports` at all — this
+# matches every other demo release sampled in this cluster (capitalmarkets-*,
+# leafy-bank-*, insurance-agentic-*, etc. all just listen on 8080 and rely on chart
+# defaults). PLANNER_AGENT_PORT/PROFILE_AGENT_PORT/PRODUCT_AGENT_PORT are set to 8080
+# in environment/*.yaml for Kanopy specifically; local/docker-compose keeps its own
+# ports (8081/9091/9092) unchanged.
 
 ---
 kind: pipeline
@@ -82,13 +84,11 @@ steps:
       values:
         - "image.tag=git-${DRONE_COMMIT_SHA:0:7}"
         - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-frontend"
-        - "containerPort=3000"
         - "ingress.enabled=true"
         - "ingress.hosts[0]=multi-agent-retail-advisor.industrysolutions.staging.corp.mongodb.com"
         - "mesh.enabled=true"
         - "sidecarContainers[0].name=orchestrator"
         - "sidecarContainers[0].image=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend:git-${DRONE_COMMIT_SHA:0:7}"
-        - "sidecarContainers[0].containerPort=8080"
         - "resources.limits.cpu=500m"
         - "resources.limits.memory=512Mi"
         - "resources.requests.cpu=100m"
@@ -116,8 +116,8 @@ steps:
       values:
         - "image.tag=git-${DRONE_COMMIT_SHA:0:7}"
         - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend"
-        - "containerPort=8081"
-        - "ingress.enabled=false"
+        - "ingress.enabled=true"
+        - "ingress.hosts[0]=multi-agent-retail-advisor-planner.industrysolutions.staging.corp.mongodb.com"
         - "mesh.enabled=true"
         - "resources.limits.cpu=500m"
         - "resources.limits.memory=512Mi"
@@ -142,8 +142,8 @@ steps:
       values:
         - "image.tag=git-${DRONE_COMMIT_SHA:0:7}"
         - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend"
-        - "containerPort=9091"
-        - "ingress.enabled=false"
+        - "ingress.enabled=true"
+        - "ingress.hosts[0]=multi-agent-retail-advisor-profile.industrysolutions.staging.corp.mongodb.com"
         - "mesh.enabled=true"
         - "resources.limits.cpu=500m"
         - "resources.limits.memory=512Mi"
@@ -168,8 +168,8 @@ steps:
       values:
         - "image.tag=git-${DRONE_COMMIT_SHA:0:7}"
         - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend"
-        - "containerPort=9092"
-        - "ingress.enabled=false"
+        - "ingress.enabled=true"
+        - "ingress.hosts[0]=multi-agent-retail-advisor-product.industrysolutions.staging.corp.mongodb.com"
         - "mesh.enabled=true"
         - "resources.limits.cpu=500m"
         - "resources.limits.memory=512Mi"
@@ -242,13 +242,11 @@ steps:
       values:
         - "image.tag=git-${DRONE_COMMIT_SHA:0:7}-prod"
         - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-frontend-prod"
-        - "containerPort=3000"
         - "ingress.enabled=true"
         - "ingress.hosts[0]=multi-agent-retail-advisor.industrysolutions.prod.corp.mongodb.com"
         - "mesh.enabled=true"
         - "sidecarContainers[0].name=orchestrator"
         - "sidecarContainers[0].image=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend-prod:git-${DRONE_COMMIT_SHA:0:7}-prod"
-        - "sidecarContainers[0].containerPort=8080"
         - "resources.limits.cpu=500m"
         - "resources.limits.memory=512Mi"
         - "resources.requests.cpu=150m"
@@ -276,8 +274,8 @@ steps:
       values:
         - "image.tag=git-${DRONE_COMMIT_SHA:0:7}-prod"
         - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend-prod"
-        - "containerPort=8081"
-        - "ingress.enabled=false"
+        - "ingress.enabled=true"
+        - "ingress.hosts[0]=multi-agent-retail-advisor-planner.industrysolutions.prod.corp.mongodb.com"
         - "mesh.enabled=true"
         - "resources.limits.cpu=500m"
         - "resources.limits.memory=512Mi"
@@ -302,8 +300,8 @@ steps:
       values:
         - "image.tag=git-${DRONE_COMMIT_SHA:0:7}-prod"
         - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend-prod"
-        - "containerPort=9091"
-        - "ingress.enabled=false"
+        - "ingress.enabled=true"
+        - "ingress.hosts[0]=multi-agent-retail-advisor-profile.industrysolutions.prod.corp.mongodb.com"
         - "mesh.enabled=true"
         - "resources.limits.cpu=500m"
         - "resources.limits.memory=512Mi"
@@ -328,8 +326,8 @@ steps:
       values:
         - "image.tag=git-${DRONE_COMMIT_SHA:0:7}-prod"
         - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend-prod"
-        - "containerPort=9092"
-        - "ingress.enabled=false"
+        - "ingress.enabled=true"
+        - "ingress.hosts[0]=multi-agent-retail-advisor-product.industrysolutions.prod.corp.mongodb.com"
         - "mesh.enabled=true"
         - "resources.limits.cpu=500m"
         - "resources.limits.memory=512Mi"
