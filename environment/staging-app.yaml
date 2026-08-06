@@ -14,11 +14,12 @@ env:
 
 envSecrets: {}
 
-## Orchestrator sidecar — talks to the 3 standalone specialist releases below over
-## their in-cluster Service DNS. Each of those releases has ingress: true (its own
-## public hostname too, for independent discovery), so the chart names their
-## Service the plain "<release>-web-app" (no port suffix — that only applies when
-## ingress is disabled).
+## Orchestrator sidecar (own default port 8080, unaffected by the frontend's
+## services[0].targetPort override in .drone.yml — the two containers share this
+## pod's network namespace but listen on different ports: frontend 3000, this on
+## 8080). Talks to the 3 standalone specialist releases below over their
+## in-cluster Service DNS; each of those has ingress: true, so the chart names
+## their Service the plain "<release>-web-app" (no port suffix).
 sidecarContainers:
   - name: orchestrator
     image: 795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend:latest

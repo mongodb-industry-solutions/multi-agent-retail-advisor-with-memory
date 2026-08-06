@@ -7,21 +7,22 @@
 #   - "profile" release:  profile-agent-service, standalone pod/Service/ingress
 #   - "product" release:  product-agent-service, standalone pod/Service/ingress
 #
-# planner/profile/product each get their own Kubernetes Service + ingress so they
-# stay independently reachable/discoverable over the network (real A2A, not sealed
-# inside one pod) — see CLAUDE.md's "every agent hop is a real network call".
+# planner/profile/product each get their own Kubernetes Service + ingress so a human
+# can reach each one directly (curl/browser) without going through the whole app —
+# see CLAUDE.md's "every agent hop is a real network call". Their advertised A2A
+# card URL still points at the internal Service DNS, not the public ingress host —
+# see environment/*-planner.yaml etc for why.
 #
 # Both the backend image (built once, reused 3x via the SERVICE env var — see
 # backend/docker-entrypoint.sh) and the frontend image are built from their existing
 # subdirectory Dockerfiles (no need to relocate them to the repo root).
 #
-# Port convention: every container listens on 8080 (the chart's own default) so we
-# never need to override `services[]`/`sidecarContainers[...].ports` at all — this
-# matches every other demo release sampled in this cluster (capitalmarkets-*,
-# leafy-bank-*, insurance-agentic-*, etc. all just listen on 8080 and rely on chart
-# defaults). PLANNER_AGENT_PORT/PROFILE_AGENT_PORT/PRODUCT_AGENT_PORT are set to 8080
-# in environment/*.yaml for Kanopy specifically; local/docker-compose keeps its own
-# ports (8081/9091/9092) unchanged.
+# Container ports: planner/profile/product listen on 8080 (PLANNER_AGENT_PORT etc.
+# in environment/*.yaml), matching the chart's own default targetPort, so they need
+# no `services[]` override. The "app" release is the one exception — its pod has two
+# containers sharing one network namespace (frontend on 3000, orchestrator sidecar on
+# its own default 8080), so the chart's Service must be told explicitly which port is
+# the ingress-facing one (frontend's 3000), via `services[0].targetPort` below.
 
 ---
 kind: pipeline
@@ -84,6 +85,13 @@ steps:
       values:
         - "image.tag=git-${DRONE_COMMIT_SHA:0:7}"
         - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-frontend"
+        - "services[0].name=http"
+        - "services[0].port=80"
+        - "services[0].targetPort=3000"
+        - "services[0].protocol=TCP"
+        - "services[0].type=ClusterIP"
+        - "services[0].ingress=true"
+        - "services[0].probes=true"
         - "ingress.enabled=true"
         - "ingress.hosts[0]=multi-agent-retail-advisor.industrysolutions.staging.corp.mongodb.com"
         - "mesh.enabled=true"
@@ -242,6 +250,13 @@ steps:
       values:
         - "image.tag=git-${DRONE_COMMIT_SHA:0:7}-prod"
         - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-frontend-prod"
+        - "services[0].name=http"
+        - "services[0].port=80"
+        - "services[0].targetPort=3000"
+        - "services[0].protocol=TCP"
+        - "services[0].type=ClusterIP"
+        - "services[0].ingress=true"
+        - "services[0].probes=true"
         - "ingress.enabled=true"
         - "ingress.hosts[0]=multi-agent-retail-advisor.industrysolutions.prod.corp.mongodb.com"
         - "mesh.enabled=true"
