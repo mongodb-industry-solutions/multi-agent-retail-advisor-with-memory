@@ -61,6 +61,12 @@ steps:
       repo: industrysolutions/multi-agent-retail-advisor-frontend
       dockerfile: frontend/Dockerfile
       context: frontend
+      # next.config.ts's rewrites() is resolved at `next build` time, not at
+      # runtime, so /api/* proxying must be set here rather than as a container
+      # env var. Frontend and the orchestrator sidecar share one pod (see
+      # deploy-app-staging), so localhost is the correct target.
+      build_args:
+        - BACKEND_URL=http://localhost:8080
       tags:
         - git-${DRONE_COMMIT_SHA:0:7}
         - latest
@@ -227,6 +233,10 @@ steps:
       repo: industrysolutions/multi-agent-retail-advisor-frontend-prod
       dockerfile: frontend/Dockerfile
       context: frontend
+      # See publish-frontend (staging) for why this must be set at build time,
+      # not via the runtime BACKEND_URL env var.
+      build_args:
+        - BACKEND_URL=http://localhost:8080
       tags:
         - git-${DRONE_COMMIT_SHA:0:7}-prod
         - prod-latest

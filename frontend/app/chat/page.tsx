@@ -164,7 +164,7 @@ export default function ChatPage() {
       if (traceResult.status === "fulfilled") setTrace(traceResult.value);
       if (profileResult.status === "fulfilled") setProfile(profileResult.value);
     } catch {
-      setErrorMsg("Backend unreachable — make sure the Java server is running on port 8080.");
+      setErrorMsg("Backend unreachable — make sure the orchestrator service is running.");
     } finally {
       setLoading(false);
       setActiveAgent(undefined);
