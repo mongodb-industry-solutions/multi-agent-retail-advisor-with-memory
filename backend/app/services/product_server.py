@@ -14,5 +14,5 @@ from ..common import config
 from .session_middleware import SessionHeaderMiddleware
 
 app = SessionHeaderMiddleware(
-    to_a2a(root_agent, host=config.A2A_HOST, port=config.PRODUCT_AGENT_PORT)
+    to_a2a(root_agent, host=config.A2A_HOST, port=config.PRODUCT_A2A_PORT)
 )

@@ -55,6 +55,16 @@ PLANNER_AGENT_PORT: int = int(os.environ.get("PLANNER_AGENT_PORT", "8081"))
 PROFILE_AGENT_PORT: int = int(os.environ.get("PROFILE_AGENT_PORT", "9091"))
 PRODUCT_AGENT_PORT: int = int(os.environ.get("PRODUCT_AGENT_PORT", "9092"))
 
+# Port advertised in each agent's own A2A card `url` — this is what other pods
+# actually dial for every call, which is not necessarily the container's bind
+# port above: a Kubernetes Service can map an external port (e.g. 80) to a
+# different container targetPort, so the two need to be independently
+# configurable. Defaults to the bind port, matching local/docker-compose where
+# there's no such indirection.
+PLANNER_A2A_PORT: int = int(os.environ.get("PLANNER_A2A_PORT", str(PLANNER_AGENT_PORT)))
+PROFILE_A2A_PORT: int = int(os.environ.get("PROFILE_A2A_PORT", str(PROFILE_AGENT_PORT)))
+PRODUCT_A2A_PORT: int = int(os.environ.get("PRODUCT_A2A_PORT", str(PRODUCT_AGENT_PORT)))
+
 # --- CORS (frontend origins) ---
 CORS_ORIGINS: list[str] = [
     o.strip()
