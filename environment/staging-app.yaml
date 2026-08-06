@@ -9,8 +9,9 @@ ownership:
 env:
   NODE_ENV: staging
   AWS_REGION: us-east-1
-  # Same pod as the orchestrator sidecar — reach it over loopback.
-  BACKEND_URL: http://localhost:8080
+  # No BACKEND_URL here: next.config.ts's rewrites() is resolved at build time,
+  # so /api/* proxying is set via .drone.yml's publish-frontend build_args
+  # instead of a container env var.
 
 envSecrets: {}
 
