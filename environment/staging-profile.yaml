@@ -13,6 +13,9 @@ env:
   # Service's targetPort, so no services[] override is needed for this
   # single-container release. Local/docker-compose keeps 9091.
   PROFILE_AGENT_PORT: "8080"
+  # The Service maps port 80 -> the container's 8080, so the card must
+  # advertise 80 (what other pods actually dial), not the bind port above.
+  PROFILE_A2A_PORT: "80"
   # Advertised in this agent's own A2A card `url` — this is the address the
   # planner actually dials for every call, not just where it first fetched the
   # card from. It must be the internal cluster Service DNS, not the public
