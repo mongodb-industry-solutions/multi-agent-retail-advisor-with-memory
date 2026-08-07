@@ -1,4 +1,4 @@
-# profile-agent-service, standalone pod — release: multi-agent-retail-advisor-profile-prod
+# profile-agent-service, standalone pod — release: multi-agent-retail-advisor-profile (prod cluster)
 security:
   dataClassification: "Internal"
   dataDesignation: ["MI"]
@@ -23,7 +23,7 @@ env:
   # so a human can curl/browse it directly, but routing real inter-agent
   # traffic through the public ingress would add an unnecessary hop and depend
   # on egress/ingress loopback being permitted.
-  A2A_HOST: multi-agent-retail-advisor-profile-prod-web-app
+  A2A_HOST: multi-agent-retail-advisor-profile-web-app
   MONGODB_DATABASE: multi-agent-retail-advisor
   LLM_MODEL: claude-sonnet-4-5
 
