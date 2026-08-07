@@ -22,7 +22,7 @@ export function ArchitectureTab() {
       >
         {!imgError ? (
           <img
-            src="/images/arch-coming-soon"
+            src="/images/architecture.svg"
             alt="Reference architecture diagram"
             className="w-full object-contain"
             onError={() => setImgError(true)}
