@@ -28,11 +28,11 @@ sidecarContainers:
       - name: SERVICE
         value: orchestrator
       - name: PLANNER_AGENT_URL
-        value: http://multi-agent-retail-advisor-planner-prod-web-app:80
+        value: http://multi-agent-retail-advisor-planner-web-app:80
       - name: PROFILE_AGENT_URL
-        value: http://multi-agent-retail-advisor-profile-prod-web-app:80
+        value: http://multi-agent-retail-advisor-profile-web-app:80
       - name: PRODUCT_AGENT_URL
-        value: http://multi-agent-retail-advisor-product-prod-web-app:80
+        value: http://multi-agent-retail-advisor-product-web-app:80
       - name: MONGODB_DATABASE
         value: multi-agent-retail-advisor
       - name: LLM_MODEL

@@ -1,4 +1,4 @@
-# planner-agent-service, standalone pod — release: multi-agent-retail-advisor-planner-prod
+# planner-agent-service, standalone pod — release: multi-agent-retail-advisor-planner (prod cluster)
 security:
   dataClassification: "Internal"
   dataDesignation: ["MI"]
@@ -23,9 +23,9 @@ env:
   # its own ingress (see .drone.yml) so a human can curl/browse it directly, but
   # routing real inter-agent traffic through the public ingress would add an
   # unnecessary hop and depend on egress/ingress loopback being permitted.
-  A2A_HOST: multi-agent-retail-advisor-planner-prod-web-app
-  PROFILE_AGENT_URL: http://multi-agent-retail-advisor-profile-prod-web-app:80
-  PRODUCT_AGENT_URL: http://multi-agent-retail-advisor-product-prod-web-app:80
+  A2A_HOST: multi-agent-retail-advisor-planner-web-app
+  PROFILE_AGENT_URL: http://multi-agent-retail-advisor-profile-web-app:80
+  PRODUCT_AGENT_URL: http://multi-agent-retail-advisor-product-web-app:80
   MONGODB_DATABASE: multi-agent-retail-advisor
   LLM_MODEL: claude-sonnet-4-5
 
