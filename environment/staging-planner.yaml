@@ -1,0 +1,41 @@
+# planner-agent-service, standalone pod — release: multi-agent-retail-advisor-planner
+security:
+  dataClassification: "Internal"
+  dataDesignation: ["MI"]
+
+ownership:
+  driEmail: alberto.camarena@mongodb.com
+
+env:
+  AWS_REGION: us-east-1
+  SERVICE: planner
+  # Kanopy-specific: listen on the chart's default port (8080), matching the
+  # Service's targetPort, so no services[] override is needed for this
+  # single-container release. Local/docker-compose keeps 8081.
+  PLANNER_AGENT_PORT: "8080"
+  # The Service maps port 80 -> the container's 8080, so the card must
+  # advertise 80 (what other pods actually dial), not the bind port above.
+  PLANNER_A2A_PORT: "80"
+  # Advertised in this agent's own A2A card `url` — this is the address other
+  # A2A clients (orchestrator, planner) actually dial for every subsequent call,
+  # not just where they first fetched the card from. It must be the internal
+  # cluster Service DNS, not the public ingress hostname: this release does have
+  # its own ingress (see .drone.yml) so a human can curl/browse it directly, but
+  # routing real inter-agent traffic through the public ingress would add an
+  # unnecessary hop and depend on egress/ingress loopback being permitted.
+  A2A_HOST: multi-agent-retail-advisor-planner-web-app
+  PROFILE_AGENT_URL: http://multi-agent-retail-advisor-profile-web-app:80
+  PRODUCT_AGENT_URL: http://multi-agent-retail-advisor-product-web-app:80
+  MONGODB_DATABASE: multi-agent-retail-advisor
+  LLM_MODEL: claude-sonnet-4-5
+
+envSecrets:
+  MONGODB_URI: multi-agent-retail-advisor-secrets
+  LLM_API_KEY: multi-agent-retail-advisor-secrets
+  LLM_BASE_URL: multi-agent-retail-advisor-secrets
+
+serviceAccount:
+  enabled: true
+  irsa:
+    accountId: "275662791714"
+    roleName: "kanopy-staging-cicd-irsa"

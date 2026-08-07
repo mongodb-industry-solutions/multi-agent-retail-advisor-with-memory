@@ -1,0 +1,62 @@
+# frontend (main container) + orchestrator (sidecar) — release: multi-agent-retail-advisor-prod
+security:
+  dataClassification: "Internal"
+  dataDesignation: ["MI"]
+
+ownership:
+  driEmail: alberto.camarena@mongodb.com
+
+env:
+  NODE_ENV: prod
+  AWS_REGION: us-east-1
+  # No BACKEND_URL here: next.config.ts's rewrites() is resolved at build time,
+  # so /api/* proxying is set via .drone.yml's publish-frontend-prod build_args
+  # instead of a container env var.
+
+envSecrets: {}
+
+## Orchestrator sidecar (own default port 8080, unaffected by the frontend's
+## services[0].targetPort override in .drone.yml — the two containers share this
+## pod's network namespace but listen on different ports: frontend 3000, this on
+## 8080). Talks to the 3 standalone specialist releases below over their
+## in-cluster Service DNS; each of those has ingress: true, so the chart names
+## their Service the plain "<release>-web-app" (no port suffix).
+sidecarContainers:
+  - name: orchestrator
+    image: 795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend-prod:prod-latest
+    env:
+      - name: SERVICE
+        value: orchestrator
+      - name: PLANNER_AGENT_URL
+        value: http://multi-agent-retail-advisor-planner-prod-web-app:80
+      - name: PROFILE_AGENT_URL
+        value: http://multi-agent-retail-advisor-profile-prod-web-app:80
+      - name: PRODUCT_AGENT_URL
+        value: http://multi-agent-retail-advisor-product-prod-web-app:80
+      - name: MONGODB_DATABASE
+        value: multi-agent-retail-advisor
+      - name: LLM_MODEL
+        value: claude-sonnet-4-5
+      # Same secret group name as staging — different clusters/contexts
+      # (api.staging vs api.prod), so no naming collision.
+      - name: MONGODB_URI
+        valueFrom:
+          secretKeyRef:
+            name: multi-agent-retail-advisor-secrets
+            key: MONGODB_URI
+      - name: LLM_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: multi-agent-retail-advisor-secrets
+            key: LLM_API_KEY
+      - name: LLM_BASE_URL
+        valueFrom:
+          secretKeyRef:
+            name: multi-agent-retail-advisor-secrets
+            key: LLM_BASE_URL
+
+serviceAccount:
+  enabled: true
+  irsa:
+    accountId: "275662791714"
+    roleName: "kanopy-prod-cicd-irsa"

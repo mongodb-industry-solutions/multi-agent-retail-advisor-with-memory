@@ -1,0 +1,366 @@
+# Kanopy CI/CD for multi-agent-retail-advisor-with-memory.
+#
+# Our app has 5 services (frontend, orchestrator, planner, profile, product) but the
+# mongodb/web-app chart is built around "one release = one pod". We split them as:
+#   - "app" release:      frontend (main container) + orchestrator (sidecar, loopback-only)
+#   - "planner" release:  planner-agent-service, standalone pod/Service/ingress
+#   - "profile" release:  profile-agent-service, standalone pod/Service/ingress
+#   - "product" release:  product-agent-service, standalone pod/Service/ingress
+#
+# planner/profile/product each get their own Kubernetes Service + ingress so a human
+# can reach each one directly (curl/browser) without going through the whole app —
+# see CLAUDE.md's "every agent hop is a real network call". Their advertised A2A
+# card URL still points at the internal Service DNS, not the public ingress host —
+# see environment/*-planner.yaml etc for why.
+#
+# Both the backend image (built once, reused 3x via the SERVICE env var — see
+# backend/docker-entrypoint.sh) and the frontend image are built from their existing
+# subdirectory Dockerfiles (no need to relocate them to the repo root).
+#
+# Container ports: planner/profile/product listen on 8080 (PLANNER_AGENT_PORT etc.
+# in environment/*.yaml), matching the chart's own default targetPort, so they need
+# no `services[]` override. The "app" release is the one exception — its pod has two
+# containers sharing one network namespace (frontend on 3000, orchestrator sidecar on
+# its own default 8080), so the chart's Service must be told explicitly which port is
+# the ingress-facing one (frontend's 3000), via `services[0].targetPort` below.
+
+---
+kind: pipeline
+type: kubernetes
+name: staging
+
+trigger:
+  branch:
+    - staging
+
+steps:
+  - name: publish-backend
+    image: plugins/kaniko-ecr
+    settings:
+      create_repository: true
+      registry: 795250896452.dkr.ecr.us-east-1.amazonaws.com
+      repo: industrysolutions/multi-agent-retail-advisor-backend
+      dockerfile: backend/Dockerfile
+      context: backend
+      tags:
+        - git-${DRONE_COMMIT_SHA:0:7}
+        - latest
+      access_key:
+        from_secret: ecr_access_key
+      secret_key:
+        from_secret: ecr_secret_key
+    when:
+      event:
+        - push
+
+  - name: publish-frontend
+    image: plugins/kaniko-ecr
+    settings:
+      create_repository: true
+      registry: 795250896452.dkr.ecr.us-east-1.amazonaws.com
+      repo: industrysolutions/multi-agent-retail-advisor-frontend
+      dockerfile: frontend/Dockerfile
+      context: frontend
+      # next.config.ts's rewrites() is resolved at `next build` time, not at
+      # runtime, so /api/* proxying must be set here rather than as a container
+      # env var. Frontend and the orchestrator sidecar share one pod (see
+      # deploy-app-staging), so localhost is the correct target.
+      build_args:
+        - BACKEND_URL=http://localhost:8080
+      tags:
+        - git-${DRONE_COMMIT_SHA:0:7}
+        - latest
+      access_key:
+        from_secret: ecr_access_key
+      secret_key:
+        from_secret: ecr_secret_key
+    when:
+      event:
+        - push
+
+  # frontend (main) + orchestrator (sidecar, reached by frontend via localhost:8080)
+  - name: deploy-app-staging
+    image: public.ecr.aws/kanopy/drone-helm:v3
+    settings:
+      chart: mongodb/web-app
+      chart_version: 4.30.0
+      add_repos: [mongodb=https://10gen.github.io/helm-charts]
+      namespace: industrysolutions
+      release: multi-agent-retail-advisor
+      values_files: ["environment/staging-app.yaml"]
+      values:
+        - "image.tag=git-${DRONE_COMMIT_SHA:0:7}"
+        - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-frontend"
+        - "services[0].name=http"
+        - "services[0].port=80"
+        - "services[0].targetPort=3000"
+        - "services[0].protocol=TCP"
+        - "services[0].type=ClusterIP"
+        - "services[0].ingress=true"
+        - "services[0].probes=true"
+        - "ingress.enabled=true"
+        - "ingress.hosts[0]=multi-agent-retail-advisor.industrysolutions.staging.corp.mongodb.com"
+        - "mesh.enabled=true"
+        - "sidecarContainers[0].name=orchestrator"
+        - "sidecarContainers[0].image=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend:git-${DRONE_COMMIT_SHA:0:7}"
+        - "resources.limits.cpu=500m"
+        - "resources.limits.memory=512Mi"
+        - "resources.requests.cpu=100m"
+        - "resources.requests.memory=256Mi"
+        - "sidecarContainers[0].resources.limits.cpu=500m"
+        - "sidecarContainers[0].resources.limits.memory=512Mi"
+        - "sidecarContainers[0].resources.requests.cpu=100m"
+        - "sidecarContainers[0].resources.requests.memory=256Mi"
+      api_server: https://api.staging.corp.mongodb.com
+      kubernetes_token:
+        from_secret: staging_kubernetes_token
+    when:
+      event:
+        - push
+
+  - name: deploy-planner-staging
+    image: public.ecr.aws/kanopy/drone-helm:v3
+    settings:
+      chart: mongodb/web-app
+      chart_version: 4.30.0
+      add_repos: [mongodb=https://10gen.github.io/helm-charts]
+      namespace: industrysolutions
+      release: multi-agent-retail-advisor-planner
+      values_files: ["environment/staging-planner.yaml"]
+      values:
+        - "image.tag=git-${DRONE_COMMIT_SHA:0:7}"
+        - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend"
+        - "ingress.enabled=true"
+        - "ingress.hosts[0]=multi-agent-retail-advisor-planner.industrysolutions.staging.corp.mongodb.com"
+        - "mesh.enabled=true"
+        - "resources.limits.cpu=500m"
+        - "resources.limits.memory=512Mi"
+        - "resources.requests.cpu=100m"
+        - "resources.requests.memory=256Mi"
+      api_server: https://api.staging.corp.mongodb.com
+      kubernetes_token:
+        from_secret: staging_kubernetes_token
+    when:
+      event:
+        - push
+
+  - name: deploy-profile-staging
+    image: public.ecr.aws/kanopy/drone-helm:v3
+    settings:
+      chart: mongodb/web-app
+      chart_version: 4.30.0
+      add_repos: [mongodb=https://10gen.github.io/helm-charts]
+      namespace: industrysolutions
+      release: multi-agent-retail-advisor-profile
+      values_files: ["environment/staging-profile.yaml"]
+      values:
+        - "image.tag=git-${DRONE_COMMIT_SHA:0:7}"
+        - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend"
+        - "ingress.enabled=true"
+        - "ingress.hosts[0]=multi-agent-retail-advisor-profile.industrysolutions.staging.corp.mongodb.com"
+        - "mesh.enabled=true"
+        - "resources.limits.cpu=500m"
+        - "resources.limits.memory=512Mi"
+        - "resources.requests.cpu=100m"
+        - "resources.requests.memory=256Mi"
+      api_server: https://api.staging.corp.mongodb.com
+      kubernetes_token:
+        from_secret: staging_kubernetes_token
+    when:
+      event:
+        - push
+
+  - name: deploy-product-staging
+    image: public.ecr.aws/kanopy/drone-helm:v3
+    settings:
+      chart: mongodb/web-app
+      chart_version: 4.30.0
+      add_repos: [mongodb=https://10gen.github.io/helm-charts]
+      namespace: industrysolutions
+      release: multi-agent-retail-advisor-product
+      values_files: ["environment/staging-product.yaml"]
+      values:
+        - "image.tag=git-${DRONE_COMMIT_SHA:0:7}"
+        - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend"
+        - "ingress.enabled=true"
+        - "ingress.hosts[0]=multi-agent-retail-advisor-product.industrysolutions.staging.corp.mongodb.com"
+        - "mesh.enabled=true"
+        - "resources.limits.cpu=500m"
+        - "resources.limits.memory=512Mi"
+        - "resources.requests.cpu=100m"
+        - "resources.requests.memory=256Mi"
+      api_server: https://api.staging.corp.mongodb.com
+      kubernetes_token:
+        from_secret: staging_kubernetes_token
+    when:
+      event:
+        - push
+
+---
+kind: pipeline
+type: kubernetes
+name: production
+
+trigger:
+  branch:
+    - main
+
+steps:
+  - name: publish-backend-prod
+    image: plugins/kaniko-ecr
+    settings:
+      create_repository: true
+      registry: 795250896452.dkr.ecr.us-east-1.amazonaws.com
+      repo: industrysolutions/multi-agent-retail-advisor-backend-prod
+      dockerfile: backend/Dockerfile
+      context: backend
+      tags:
+        - git-${DRONE_COMMIT_SHA:0:7}-prod
+        - prod-latest
+      access_key:
+        from_secret: ecr_access_key
+      secret_key:
+        from_secret: ecr_secret_key
+    when:
+      event:
+        - push
+
+  - name: publish-frontend-prod
+    image: plugins/kaniko-ecr
+    settings:
+      create_repository: true
+      registry: 795250896452.dkr.ecr.us-east-1.amazonaws.com
+      repo: industrysolutions/multi-agent-retail-advisor-frontend-prod
+      dockerfile: frontend/Dockerfile
+      context: frontend
+      # See publish-frontend (staging) for why this must be set at build time,
+      # not via the runtime BACKEND_URL env var.
+      build_args:
+        - BACKEND_URL=http://localhost:8080
+      tags:
+        - git-${DRONE_COMMIT_SHA:0:7}-prod
+        - prod-latest
+      access_key:
+        from_secret: ecr_access_key
+      secret_key:
+        from_secret: ecr_secret_key
+    when:
+      event:
+        - push
+
+  - name: deploy-app-production
+    image: public.ecr.aws/kanopy/drone-helm:v3
+    settings:
+      chart: mongodb/web-app
+      chart_version: 4.30.0
+      add_repos: [mongodb=https://10gen.github.io/helm-charts]
+      namespace: industrysolutions
+      release: multi-agent-retail-advisor-prod
+      values_files: ["environment/production-app.yaml"]
+      values:
+        - "image.tag=git-${DRONE_COMMIT_SHA:0:7}-prod"
+        - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-frontend-prod"
+        - "services[0].name=http"
+        - "services[0].port=80"
+        - "services[0].targetPort=3000"
+        - "services[0].protocol=TCP"
+        - "services[0].type=ClusterIP"
+        - "services[0].ingress=true"
+        - "services[0].probes=true"
+        - "ingress.enabled=true"
+        - "ingress.hosts[0]=multi-agent-retail-advisor.industrysolutions.prod.corp.mongodb.com"
+        - "mesh.enabled=true"
+        - "sidecarContainers[0].name=orchestrator"
+        - "sidecarContainers[0].image=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend-prod:git-${DRONE_COMMIT_SHA:0:7}-prod"
+        - "resources.limits.cpu=500m"
+        - "resources.limits.memory=512Mi"
+        - "resources.requests.cpu=150m"
+        - "resources.requests.memory=256Mi"
+        - "sidecarContainers[0].resources.limits.cpu=500m"
+        - "sidecarContainers[0].resources.limits.memory=512Mi"
+        - "sidecarContainers[0].resources.requests.cpu=150m"
+        - "sidecarContainers[0].resources.requests.memory=256Mi"
+      api_server: https://api.prod.corp.mongodb.com
+      kubernetes_token:
+        from_secret: prod_kubernetes_token
+    when:
+      event:
+        - push
+
+  - name: deploy-planner-production
+    image: public.ecr.aws/kanopy/drone-helm:v3
+    settings:
+      chart: mongodb/web-app
+      chart_version: 4.30.0
+      add_repos: [mongodb=https://10gen.github.io/helm-charts]
+      namespace: industrysolutions
+      release: multi-agent-retail-advisor-planner-prod
+      values_files: ["environment/production-planner.yaml"]
+      values:
+        - "image.tag=git-${DRONE_COMMIT_SHA:0:7}-prod"
+        - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend-prod"
+        - "ingress.enabled=true"
+        - "ingress.hosts[0]=multi-agent-retail-advisor-planner.industrysolutions.prod.corp.mongodb.com"
+        - "mesh.enabled=true"
+        - "resources.limits.cpu=500m"
+        - "resources.limits.memory=512Mi"
+        - "resources.requests.cpu=150m"
+        - "resources.requests.memory=256Mi"
+      api_server: https://api.prod.corp.mongodb.com
+      kubernetes_token:
+        from_secret: prod_kubernetes_token
+    when:
+      event:
+        - push
+
+  - name: deploy-profile-production
+    image: public.ecr.aws/kanopy/drone-helm:v3
+    settings:
+      chart: mongodb/web-app
+      chart_version: 4.30.0
+      add_repos: [mongodb=https://10gen.github.io/helm-charts]
+      namespace: industrysolutions
+      release: multi-agent-retail-advisor-profile-prod
+      values_files: ["environment/production-profile.yaml"]
+      values:
+        - "image.tag=git-${DRONE_COMMIT_SHA:0:7}-prod"
+        - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend-prod"
+        - "ingress.enabled=true"
+        - "ingress.hosts[0]=multi-agent-retail-advisor-profile.industrysolutions.prod.corp.mongodb.com"
+        - "mesh.enabled=true"
+        - "resources.limits.cpu=500m"
+        - "resources.limits.memory=512Mi"
+        - "resources.requests.cpu=150m"
+        - "resources.requests.memory=256Mi"
+      api_server: https://api.prod.corp.mongodb.com
+      kubernetes_token:
+        from_secret: prod_kubernetes_token
+    when:
+      event:
+        - push
+
+  - name: deploy-product-production
+    image: public.ecr.aws/kanopy/drone-helm:v3
+    settings:
+      chart: mongodb/web-app
+      chart_version: 4.30.0
+      add_repos: [mongodb=https://10gen.github.io/helm-charts]
+      namespace: industrysolutions
+      release: multi-agent-retail-advisor-product-prod
+      values_files: ["environment/production-product.yaml"]
+      values:
+        - "image.tag=git-${DRONE_COMMIT_SHA:0:7}-prod"
+        - "image.repository=795250896452.dkr.ecr.us-east-1.amazonaws.com/industrysolutions/multi-agent-retail-advisor-backend-prod"
+        - "ingress.enabled=true"
+        - "ingress.hosts[0]=multi-agent-retail-advisor-product.industrysolutions.prod.corp.mongodb.com"
+        - "mesh.enabled=true"
+        - "resources.limits.cpu=500m"
+        - "resources.limits.memory=512Mi"
+        - "resources.requests.cpu=150m"
+        - "resources.requests.memory=256Mi"
+      api_server: https://api.prod.corp.mongodb.com
+      kubernetes_token:
+        from_secret: prod_kubernetes_token
+    when:
+      event:
+        - push

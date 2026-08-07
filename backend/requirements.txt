@@ -1,0 +1,18 @@
+# Google ADK with A2A protocol support + LiteLLM (Anthropic Claude via the Azure
+# API Management gateway). The [a2a] extra pulls a2a-sdk; [extensions] pulls litellm.
+google-adk[a2a,extensions]==2.5.0
+# A2A server streaming routes (message/stream) require sse-starlette explicitly.
+sse-starlette==3.4.5
+
+# Orchestrator HTTP layer (frontend-facing REST contract)
+fastapi==0.139.2
+uvicorn[standard]==0.51.0
+# A2A client + session-forwarding httpx client (used directly in common/a2a.py
+# and the orchestrator); pinned explicitly rather than relied on transitively.
+httpx==0.28.1
+
+# MongoDB — the agentic data plane
+pymongo[srv]==4.17.0
+
+# Local .env loading
+python-dotenv==1.2.2
