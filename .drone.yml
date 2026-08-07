@@ -294,7 +294,7 @@ steps:
       chart_version: 4.30.0
       add_repos: [mongodb=https://10gen.github.io/helm-charts]
       namespace: industrysolutions
-      release: multi-agent-retail-advisor-planner-prod
+      release: multi-agent-retail-advisor-planner
       values_files: ["environment/production-planner.yaml"]
       values:
         - "image.tag=git-${DRONE_COMMIT_SHA:0:7}-prod"
@@ -320,7 +320,7 @@ steps:
       chart_version: 4.30.0
       add_repos: [mongodb=https://10gen.github.io/helm-charts]
       namespace: industrysolutions
-      release: multi-agent-retail-advisor-profile-prod
+      release: multi-agent-retail-advisor-profile
       values_files: ["environment/production-profile.yaml"]
       values:
         - "image.tag=git-${DRONE_COMMIT_SHA:0:7}-prod"
@@ -346,7 +346,7 @@ steps:
       chart_version: 4.30.0
       add_repos: [mongodb=https://10gen.github.io/helm-charts]
       namespace: industrysolutions
-      release: multi-agent-retail-advisor-product-prod
+      release: multi-agent-retail-advisor-product
       values_files: ["environment/production-product.yaml"]
       values:
         - "image.tag=git-${DRONE_COMMIT_SHA:0:7}-prod"
