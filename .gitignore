@@ -25,3 +25,6 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# E2E testing
+e2e/
