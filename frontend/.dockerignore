@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+build
+dist
+tsconfig.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.git
+.gitignore
+.DS_Store
+Dockerfile
+.dockerignore
+*.md
+.env
+.env.*
