@@ -44,18 +44,26 @@ _remote_planner = RemoteA2aAgent(
     use_legacy=False,
 )
 _session_service = MongoSessionService()
-_runner = Runner(app_name=APP_NAME, agent=_remote_planner, session_service=_session_service)
+_runner = Runner(
+    app_name=APP_NAME,
+    agent=_remote_planner,
+    session_service=_session_service,
+    # The Mongo session service has no session document — a session exists once
+    # it has events — so the Runner must create it on the first turn.
+    auto_create_session=True,
+)
 
 
 async def _run_planner(input_text: str, user_id: str, session_id: str) -> str:
     """Run the remote Planner via A2A and return its final synthesized text.
 
     One ADK session per conversation, keyed by the same ``session_id`` we persist
-    in MongoDB. This is what makes the chat continuous: the Planner keeps its own
-    session, addressed by the A2A ``context_id`` that we replay from the previous
-    turn's events — so the model sees the whole conversation, not just the latest
-    message. (A fresh session per turn would drop that ``context_id`` and the
-    Planner would start over every time.)
+    in MongoDB. The Runner creates it on first use (``auto_create_session``) and
+    reuses it thereafter, which is what makes the chat continuous: the Planner
+    keeps its own session, addressed by the A2A ``context_id`` that we replay from
+    the previous turn's events — so the model sees the whole conversation, not
+    just the latest message. (A fresh session per turn would drop that
+    ``context_id`` and the Planner would start over every time.)
 
     RemoteA2aAgent swallows A2A-level failures (e.g. the planner service being
     unreachable) into an ``Event.error_message`` instead of raising, so we
@@ -63,18 +71,11 @@ async def _run_planner(input_text: str, user_id: str, session_id: str) -> str:
     generic reply while the caller's except block (and therefore
     ``fail_agent_state``) never runs.
     """
-    session = await _session_service.get_session(
-        app_name=APP_NAME, user_id=user_id, session_id=session_id
-    )
-    if session is None:
-        session = await _session_service.create_session(
-            app_name=APP_NAME, user_id=user_id, session_id=session_id
-        )
     final: Optional[str] = None
     last_error: Optional[str] = None
     async for event in _runner.run_async(
         user_id=user_id,
-        session_id=session.id,
+        session_id=session_id,
         new_message=types.Content(role="user", parts=[types.Part(text=input_text)]),
     ):
         if event.error_message:

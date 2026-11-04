@@ -230,4 +230,7 @@ def build_a2a_runner(agent) -> Runner:
         artifact_service=InMemoryArtifactService(),
         memory_service=InMemoryMemoryService(),
         credential_service=InMemoryCredentialService(),
+        # No session document exists until there are events, so the Runner must
+        # create the session on first use.
+        auto_create_session=True,
     )
