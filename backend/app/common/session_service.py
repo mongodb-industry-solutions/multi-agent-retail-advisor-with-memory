@@ -1,29 +1,24 @@
 """MongoDB-backed ADK session service.
 
-Persists ADK sessions and their events in the same MongoDB the rest of the demo
-uses, so a conversation's model context lives in the agentic data plane rather
-than only in each process's memory — it survives restarts and is shared across
-replicas.
+Persists the model's conversation context in the same MongoDB the rest of the
+demo uses, so it lives in the agentic data plane rather than in each process's
+memory — surviving restarts and shared across replicas.
 
-Two collections, to keep session documents small and bounded:
-
-* ``adk_sessions`` — one document per ``(app_name, user_id, session_id)`` holding
-  the session state and last-update time.
-* ``adk_events`` — one document per event, keyed by the same triple and ordered
-  by ``timestamp``. (Storing events as an ever-growing array inside the session
-  document would risk the 16 MB limit for long conversations.)
+There is a single ``adk_events`` collection: one document per ADK event (user
+message, model reply, tool call/response), keyed by ``(app_name, user_id,
+session_id)`` and ordered by ``timestamp``. No separate session document is
+needed — the demo doesn't use ADK ``state``, so a session is fully described by
+its events (existence, history, last update). One document per event also keeps
+each write bounded, so a long conversation can't hit MongoDB's 16 MB document
+limit.
 
 Every service uses this: the orchestrator keys sessions by the app's own
 ``sessionId``, and each A2A agent keys them by the A2A ``context_id`` — so the
 model's short-term context and the app's transcript are the same conversation.
-
-Note: only session-scoped state is persisted; the demo doesn't use the
-``app:``/``user:``/``temp:`` state prefixes.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any, Optional
 
 import anyio
@@ -40,121 +35,40 @@ from google.adk.sessions.session import Session
 
 from . import mongo
 
-ADK_SESSIONS = "adk_sessions"
 ADK_EVENTS = "adk_events"
 
 
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
 class MongoSessionService(BaseSessionService):
-    """ADK session service backed by MongoDB.
+    """ADK session service backed by the ``adk_events`` collection.
 
-    PyMongo is synchronous, so each database call is offloaded to a worker
-    thread — the same pattern the orchestrator uses for its own Mongo access.
+    A session is derived entirely from its events — there is no session
+    document. PyMongo is synchronous, so each database call is offloaded to a
+    worker thread (the same pattern the orchestrator uses for its Mongo access).
     """
 
-    def __init__(
-        self,
-        sessions_collection: str = ADK_SESSIONS,
-        events_collection: str = ADK_EVENTS,
-    ) -> None:
-        self._sessions_name = sessions_collection
+    def __init__(self, events_collection: str = ADK_EVENTS) -> None:
         self._events_name = events_collection
-        self._sessions = None
         self._events = None
-        self._indexes_ensured = False
+        self._index_ensured = False
 
-    # --- lazy handles (don't touch Mongo at import time) -------------------
-    def _sessions_col(self):
-        if self._sessions is None:
-            self._sessions = mongo.col(self._sessions_name)
-        return self._sessions
-
+    # --- lazy handle (don't touch Mongo at import time) --------------------
     def _events_col(self):
         if self._events is None:
             self._events = mongo.col(self._events_name)
         return self._events
 
-    def _ensure_indexes(self) -> None:
-        if self._indexes_ensured:
+    def _ensure_index(self) -> None:
+        if self._index_ensured:
             return
-        self._sessions_col().create_index(
-            [("app_name", 1), ("user_id", 1), ("session_id", 1)],
-            unique=True,
-            name="uniq_app_user_session",
-        )
         self._events_col().create_index(
             [("app_name", 1), ("user_id", 1), ("session_id", 1), ("timestamp", 1)],
             name="events_by_session",
         )
-        self._indexes_ensured = True
+        self._index_ensured = True
 
     @staticmethod
     def _key(app_name: str, user_id: str, session_id: str) -> dict[str, str]:
         return {"app_name": app_name, "user_id": user_id, "session_id": session_id}
-
-    # --- BaseSessionService ------------------------------------------------
-    async def create_session(
-        self,
-        *,
-        app_name: str,
-        user_id: str,
-        state: Optional[dict[str, Any]] = None,
-        session_id: Optional[str] = None,
-    ) -> Session:
-        def _create() -> Session:
-            self._ensure_indexes()
-            sid = (session_id or "").strip() or platform_uuid.new_uuid()
-            if self._sessions_col().find_one(self._key(app_name, user_id, sid)):
-                raise AlreadyExistsError(f"Session with id {sid} already exists.")
-            initial_state = state or {}
-            self._sessions_col().insert_one(
-                {
-                    **self._key(app_name, user_id, sid),
-                    "state": initial_state,
-                    "last_update_time": 0.0,
-                    "created_at": _now(),
-                    "updated_at": _now(),
-                }
-            )
-            return Session(
-                id=sid,
-                app_name=app_name,
-                user_id=user_id,
-                state=initial_state,
-                events=[],
-                last_update_time=0.0,
-            )
-
-        return await anyio.to_thread.run_sync(_create)
-
-    async def get_session(
-        self,
-        *,
-        app_name: str,
-        user_id: str,
-        session_id: str,
-        config: Optional[GetSessionConfig] = None,
-    ) -> Optional[Session]:
-        def _get() -> Optional[Session]:
-            doc = self._sessions_col().find_one(
-                self._key(app_name, user_id, session_id)
-            )
-            if doc is None:
-                return None
-            events = self._load_events(app_name, user_id, session_id, config)
-            return Session(
-                id=doc["session_id"],
-                app_name=doc["app_name"],
-                user_id=doc["user_id"],
-                state=doc.get("state") or {},
-                events=events,
-                last_update_time=doc.get("last_update_time", 0.0),
-            )
-
-        return await anyio.to_thread.run_sync(_get)
 
     def _load_events(
         self,
@@ -176,24 +90,90 @@ class MongoSessionService(BaseSessionService):
             events = events[-n:] if n > 0 else []
         return events
 
+    def _latest(self, app_name: str, user_id: str, session_id: str) -> Optional[dict]:
+        return self._events_col().find_one(
+            self._key(app_name, user_id, session_id),
+            sort=[("timestamp", -1)],
+            projection={"timestamp": 1},
+        )
+
+    # --- BaseSessionService ------------------------------------------------
+    async def create_session(
+        self,
+        *,
+        app_name: str,
+        user_id: str,
+        state: Optional[dict[str, Any]] = None,
+        session_id: Optional[str] = None,
+    ) -> Session:
+        def _create() -> Session:
+            self._ensure_index()
+            sid = (session_id or "").strip() or platform_uuid.new_uuid()
+            # A session is defined by its events; existing events for this id
+            # mean the session already exists (mirrors the in-memory contract).
+            if self._events_col().find_one(self._key(app_name, user_id, sid)):
+                raise AlreadyExistsError(f"Session with id {sid} already exists.")
+            return Session(
+                id=sid,
+                app_name=app_name,
+                user_id=user_id,
+                state=state or {},
+                events=[],
+                last_update_time=0.0,
+            )
+
+        return await anyio.to_thread.run_sync(_create)
+
+    async def get_session(
+        self,
+        *,
+        app_name: str,
+        user_id: str,
+        session_id: str,
+        config: Optional[GetSessionConfig] = None,
+    ) -> Optional[Session]:
+        def _get() -> Optional[Session]:
+            latest = self._latest(app_name, user_id, session_id)
+            if latest is None:
+                return None  # no events => the session doesn't exist yet
+            return Session(
+                id=session_id,
+                app_name=app_name,
+                user_id=user_id,
+                state={},
+                events=self._load_events(app_name, user_id, session_id, config),
+                last_update_time=latest.get("timestamp", 0.0),
+            )
+
+        return await anyio.to_thread.run_sync(_get)
+
     async def list_sessions(
         self, *, app_name: str, user_id: Optional[str] = None
     ) -> ListSessionsResponse:
         def _list() -> ListSessionsResponse:
-            query: dict[str, Any] = {"app_name": app_name}
+            match: dict[str, Any] = {"app_name": app_name}
             if user_id is not None:
-                query["user_id"] = user_id
+                match["user_id"] = user_id
+            pipeline = [
+                {"$match": match},
+                {
+                    "$group": {
+                        "_id": {"session_id": "$session_id", "user_id": "$user_id"},
+                        "last_update_time": {"$max": "$timestamp"},
+                    }
+                },
+            ]
             return ListSessionsResponse(
                 sessions=[
                     Session(
-                        id=doc["session_id"],
-                        app_name=doc["app_name"],
-                        user_id=doc["user_id"],
-                        state=doc.get("state") or {},
+                        id=doc["_id"]["session_id"],
+                        app_name=app_name,
+                        user_id=doc["_id"]["user_id"],
+                        state={},
                         events=[],
                         last_update_time=doc.get("last_update_time", 0.0),
                     )
-                    for doc in self._sessions_col().find(query)
+                    for doc in self._events_col().aggregate(pipeline)
                 ]
             )
 
@@ -202,12 +182,11 @@ class MongoSessionService(BaseSessionService):
     async def delete_session(
         self, *, app_name: str, user_id: str, session_id: str
     ) -> None:
-        def _delete() -> None:
-            key = self._key(app_name, user_id, session_id)
-            self._sessions_col().delete_one(key)
-            self._events_col().delete_many(key)
-
-        await anyio.to_thread.run_sync(_delete)
+        await anyio.to_thread.run_sync(
+            lambda: self._events_col().delete_many(
+                self._key(app_name, user_id, session_id)
+            )
+        )
 
     async def append_event(self, session: Session, event: Event) -> Event:
         if event.partial:
@@ -217,25 +196,14 @@ class MongoSessionService(BaseSessionService):
         session.last_update_time = event.timestamp
 
         def _persist() -> None:
-            self._ensure_indexes()
-            key = self._key(session.app_name, session.user_id, session.id)
+            self._ensure_index()
             self._events_col().insert_one(
                 {
-                    **key,
+                    **self._key(session.app_name, session.user_id, session.id),
                     "event_id": event.id,
                     "timestamp": event.timestamp,
                     "event_data": event.model_dump(mode="json"),
                 }
-            )
-            self._sessions_col().update_one(
-                key,
-                {
-                    "$set": {
-                        "state": session.state,
-                        "last_update_time": event.timestamp,
-                        "updated_at": _now(),
-                    }
-                },
             )
 
         await anyio.to_thread.run_sync(_persist)
