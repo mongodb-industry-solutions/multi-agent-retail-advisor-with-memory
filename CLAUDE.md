@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## SECURITY RULES
+- NEVER read, output, or search inside `.env` or `.env.*` files.
+- STOP immediately if you encounter API keys, credentials, passwords, or tokens.
+- Do not execute commands like `printenv`, `env`, `kubectl`, `helm` or `cat .env`.
+
 ## Project Overview
 
 A retail product advisor **multi-agent demo** showcasing:
