@@ -25,12 +25,12 @@ from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from google.adk.agents.remote_a2a_agent import AGENT_CARD_WELL_KNOWN_PATH, RemoteA2aAgent
 from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from pydantic import BaseModel, Field
 
 from ..common import config, context, mongo
 from ..common.a2a import make_session_forwarding_client
+from ..common.session_service import MongoSessionService
 
 APP_NAME = "retail-advisor"
 
@@ -43,7 +43,7 @@ _remote_planner = RemoteA2aAgent(
     httpx_client=_httpx_client,
     use_legacy=False,
 )
-_session_service = InMemorySessionService()
+_session_service = MongoSessionService()
 _runner = Runner(app_name=APP_NAME, agent=_remote_planner, session_service=_session_service)
 
 
