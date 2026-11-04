@@ -47,8 +47,15 @@ _session_service = InMemorySessionService()
 _runner = Runner(app_name=APP_NAME, agent=_remote_planner, session_service=_session_service)
 
 
-async def _run_planner(input_text: str, user_id: str) -> str:
+async def _run_planner(input_text: str, user_id: str, session_id: str) -> str:
     """Run the remote Planner via A2A and return its final synthesized text.
+
+    One ADK session per conversation, keyed by the same ``session_id`` we persist
+    in MongoDB. This is what makes the chat continuous: the Planner keeps its own
+    session, addressed by the A2A ``context_id`` that we replay from the previous
+    turn's events — so the model sees the whole conversation, not just the latest
+    message. (A fresh session per turn would drop that ``context_id`` and the
+    Planner would start over every time.)
 
     RemoteA2aAgent swallows A2A-level failures (e.g. the planner service being
     unreachable) into an ``Event.error_message`` instead of raising, so we
@@ -56,7 +63,13 @@ async def _run_planner(input_text: str, user_id: str) -> str:
     generic reply while the caller's except block (and therefore
     ``fail_agent_state``) never runs.
     """
-    session = await _session_service.create_session(app_name=APP_NAME, user_id=user_id)
+    session = await _session_service.get_session(
+        app_name=APP_NAME, user_id=user_id, session_id=session_id
+    )
+    if session is None:
+        session = await _session_service.create_session(
+            app_name=APP_NAME, user_id=user_id, session_id=session_id
+        )
     final: Optional[str] = None
     last_error: Optional[str] = None
     async for event in _runner.run_async(
@@ -160,7 +173,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
     failed = False
     try:
         await anyio.to_thread.run_sync(mongo.update_step, session_id, "executing")
-        reply = await _run_planner(full_input, req.userId)
+        reply = await _run_planner(full_input, req.userId, session_id)
         await anyio.to_thread.run_sync(mongo.update_step, session_id, "synthesizing")
     except Exception as e:  # noqa: BLE001
         await anyio.to_thread.run_sync(mongo.fail_agent_state, session_id, str(e))
