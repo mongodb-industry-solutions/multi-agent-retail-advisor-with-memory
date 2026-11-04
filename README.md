@@ -20,7 +20,7 @@ The LLM is provider-agnostic via LiteLLM — swap `LLM_MODEL` (e.g. `claude-sonn
 | Agent framework | Google ADK 2.5 (Python) |
 | Agent-to-agent | A2A protocol via `a2a-sdk` (JSON-RPC 2.0 over HTTP) |
 | API layer | FastAPI (orchestrator) · Starlette/uvicorn (A2A servers) |
-| LLM | Anthropic (Claude) via LiteLLM → Azure API Management gateway |
+| LLM | Anthropic (Claude) via LiteLLM |
 | Embeddings | Atlas Auto-Embeddings — Voyage 4 asymmetric (`voyage-4-large` docs / `voyage-4-lite` queries) + native `$rerank` (`rerank-2.5`) |
 | Database | MongoDB Atlas (Vector Search + full-text Search) |
 | Frontend | Next.js 16 · React 18 · TypeScript · Tailwind CSS 4 |

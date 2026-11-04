@@ -8,7 +8,7 @@ A retail product advisor **multi-agent demo** showcasing:
 - **Google ADK (Python)** orchestration with a Planner delegating to specialist sub-agents
 - **Real A2A (Agent-to-Agent) protocol** — each agent is an independent service that publishes a spec-compliant AgentCard at `/.well-known/agent-card.json` and communicates over **JSON-RPC 2.0**. Agents talk over the network, not via in-process calls.
 - **MongoDB Atlas as the agentic data plane** — product catalog, user profiles, long-term memory, session history, orchestration state, and tool audit logs all live there
-- **Anthropic** as the LLM, via LiteLLM through an Azure API Management gateway
+- **Anthropic** as the LLM, via LiteLLM
 
 The backend is Python (FastAPI + ADK + a2a-sdk); the frontend is Next.js. Everything runs via Docker Compose.
 
@@ -87,15 +87,15 @@ Only needed once — all data lives in MongoDB afterwards.
 |---|---|
 | `MONGODB_URI` | Atlas connection string |
 | `MONGODB_DATABASE` | Database name |
-| `LLM_API_KEY` | Azure API Management key for Claude |
-| `LLM_BASE_URL` | Azure gateway URL |
+| `LLM_API_KEY` | API key for the Anthropic (or Anthropic-compatible) endpoint |
+| `LLM_BASE_URL` | Optional base URL of an Anthropic-compatible endpoint (blank = api.anthropic.com) |
 | `LLM_MODEL` | Chat model, e.g. `claude-sonnet-4-5` (or a prefixed `openai/gpt-4o`). |
 | `VOYAGE_DOC_MODEL` / `VOYAGE_QUERY_MODEL` | Optional. Corpus vs query embedding models (default `voyage-4-large` / `voyage-4-lite`). |
 | `RERANK_MODEL` | Optional. Native reranker (default `rerank-2.5`). |
 
 The A2A topology vars (`PLANNER_AGENT_URL`, `PROFILE_AGENT_URL`, `PRODUCT_AGENT_URL`, `A2A_HOST`, ports) are injected per service by `docker-compose.yml`; locally they default to loopback (`app/common/config.py`).
 
-**LLM header note:** the Azure gateway needs an `api-key` header instead of the standard `x-api-key`. `app/common/model.py` sends a placeholder api key and injects the real credential via LiteLLM `extra_headers`. If the gateway URL already includes `/v1/messages`, set `LITELLM_ANTHROPIC_DISABLE_URL_SUFFIX=true`.
+**LLM header note:** the model authenticates with the standard `x-api-key` header that LiteLLM derives from `api_key` — no placeholder/`extra_headers` workaround. `LLM_BASE_URL` is optional: LiteLLM appends `/v1/messages` and falls back to `https://api.anthropic.com` when unset.
 
 ## Architecture
 
@@ -106,7 +106,7 @@ app/
 ├── common/          # framework-neutral shared layer
 │   ├── config.py    # env-driven configuration
 │   ├── mongo.py     # PyMongo client + collection names + repositories
-│   ├── model.py     # LiteLlm(Anthropic) factory (Azure gateway header)
+│   ├── model.py     # LiteLlm(Anthropic) factory
 │   ├── tools.py     # the 4 ADK tools (search_products + 3 profile/memory tools)
 │   ├── context.py   # contextvar carrying session_id across the request
 │   └── a2a.py       # httpx client that forwards X-Session-Id downstream
