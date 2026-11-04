@@ -12,8 +12,14 @@ from google.adk.a2a.utils.agent_to_a2a import to_a2a
 
 from ..agents.profile_agent import root_agent
 from ..common import config
+from ..common.session_service import build_a2a_runner
 from .session_middleware import SessionHeaderMiddleware
 
 app = SessionHeaderMiddleware(
-    to_a2a(root_agent, host=config.A2A_HOST, port=config.PROFILE_A2A_PORT)
+    to_a2a(
+        root_agent,
+        host=config.A2A_HOST,
+        port=config.PROFILE_A2A_PORT,
+        runner=build_a2a_runner(root_agent),
+    )
 )

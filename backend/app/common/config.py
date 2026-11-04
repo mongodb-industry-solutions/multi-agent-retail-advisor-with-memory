@@ -17,9 +17,9 @@ load_dotenv()
 MONGODB_URI: str = os.environ.get("MONGODB_URI", "")
 MONGODB_DATABASE: str = os.environ.get("MONGODB_DATABASE", "multi-agent-retail-advisor")
 
-# --- LLM gateway (Anthropic via Azure API Management) ---
-# The gateway requires an "api-key" header instead of the standard x-api-key;
-# see common.model.build_model for how that is wired through LiteLLM.
+# --- LLM (Anthropic Claude, via LiteLLM) ---
+# Standard Anthropic auth (x-api-key); see common.model.build_model. LLM_BASE_URL
+# is optional — when unset, LiteLLM uses https://api.anthropic.com.
 LLM_API_KEY: str = os.environ.get("LLM_API_KEY", "")
 LLM_BASE_URL: str = os.environ.get("LLM_BASE_URL", "")
 # Provider-agnostic chat model. If the value carries a provider prefix

@@ -543,9 +543,11 @@ export default function ChatPage() {
                 <div className="p-4 pt-3">
                   <MongoDocViewer
                     session={trace?.session ?? {}}
-                    agentState={trace?.agentState ?? {}}
-                    user={profile?.user ?? {}}
                     memory={profile?.memory ?? {}}
+                    products={trace?.products ?? []}
+                    agentState={trace?.agentState ?? {}}
+                    toolInvocations={trace?.toolInvocations ?? []}
+                    adkEvents={trace?.adkEvents ?? []}
                     onLearnMore={() => setShowWhyModal(true)}
                   />
                 </div>

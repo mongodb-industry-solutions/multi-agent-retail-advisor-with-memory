@@ -25,12 +25,12 @@ from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from google.adk.agents.remote_a2a_agent import AGENT_CARD_WELL_KNOWN_PATH, RemoteA2aAgent
 from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from pydantic import BaseModel, Field
 
 from ..common import config, context, mongo
 from ..common.a2a import make_session_forwarding_client
+from ..common.session_service import ADK_EVENTS, MongoSessionService
 
 APP_NAME = "retail-advisor"
 
@@ -43,12 +43,27 @@ _remote_planner = RemoteA2aAgent(
     httpx_client=_httpx_client,
     use_legacy=False,
 )
-_session_service = InMemorySessionService()
-_runner = Runner(app_name=APP_NAME, agent=_remote_planner, session_service=_session_service)
+_session_service = MongoSessionService()
+_runner = Runner(
+    app_name=APP_NAME,
+    agent=_remote_planner,
+    session_service=_session_service,
+    # The Mongo session service has no session document — a session exists once
+    # it has events — so the Runner must create it on the first turn.
+    auto_create_session=True,
+)
 
 
-async def _run_planner(input_text: str, user_id: str) -> str:
+async def _run_planner(input_text: str, user_id: str, session_id: str) -> str:
     """Run the remote Planner via A2A and return its final synthesized text.
+
+    One ADK session per conversation, keyed by the same ``session_id`` we persist
+    in MongoDB. The Runner creates it on first use (``auto_create_session``) and
+    reuses it thereafter, which is what makes the chat continuous: the Planner
+    keeps its own session, addressed by the A2A ``context_id`` that we replay from
+    the previous turn's events — so the model sees the whole conversation, not
+    just the latest message. (A fresh session per turn would drop that
+    ``context_id`` and the Planner would start over every time.)
 
     RemoteA2aAgent swallows A2A-level failures (e.g. the planner service being
     unreachable) into an ``Event.error_message`` instead of raising, so we
@@ -56,16 +71,19 @@ async def _run_planner(input_text: str, user_id: str) -> str:
     generic reply while the caller's except block (and therefore
     ``fail_agent_state``) never runs.
     """
-    session = await _session_service.create_session(app_name=APP_NAME, user_id=user_id)
     final: Optional[str] = None
     last_error: Optional[str] = None
     async for event in _runner.run_async(
         user_id=user_id,
-        session_id=session.id,
+        session_id=session_id,
         new_message=types.Content(role="user", parts=[types.Part(text=input_text)]),
     ):
         if event.error_message:
             last_error = event.error_message
+            # A failure payload can still carry text (ADK wraps the exception
+            # message into the A2A task status). Never surface that as the answer
+            # — fall through to the clean failure reply below.
+            continue
         if event.is_final_response() and event.content and event.content.parts:
             text = event.content.parts[0].text
             if text and text.strip():
@@ -156,7 +174,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
     failed = False
     try:
         await anyio.to_thread.run_sync(mongo.update_step, session_id, "executing")
-        reply = await _run_planner(full_input, req.userId)
+        reply = await _run_planner(full_input, req.userId, session_id)
         await anyio.to_thread.run_sync(mongo.update_step, session_id, "synthesizing")
     except Exception as e:  # noqa: BLE001
         await anyio.to_thread.run_sync(mongo.fail_agent_state, session_id, str(e))
@@ -169,12 +187,37 @@ async def chat(req: ChatRequest) -> ChatResponse:
     return ChatResponse(reply=reply, sessionId=session_id, toolCallCount=tool_count)
 
 
+def _adk_event_view(doc: dict) -> dict:
+    """Project a stored ADK event down to the fields worth showing in the UI."""
+    data = doc.get("event_data") or {}
+    parts = (data.get("content") or {}).get("parts") or []
+    text = "\n".join(
+        p.get("text", "") for p in parts if isinstance(p, dict) and p.get("text")
+    ).strip()
+    return {
+        "event_id": doc.get("event_id"),
+        "author": data.get("author"),
+        "timestamp": doc.get("timestamp"),
+        "text": text,
+    }
+
+
 @app.get("/api/trace/{session_id}")
 def get_trace(session_id: str) -> dict:
+    # The model's own conversation, persisted by MongoSessionService in adk_events
+    # (keyed by the same sessionId as the app transcript).
+    adk_events = list(
+        mongo.col(ADK_EVENTS)
+        .find({"app_name": APP_NAME, "session_id": session_id})
+        .sort("timestamp", 1)
+    )
     return {
         "session": _clean(mongo.find_session(session_id)),
         "agentState": _clean(mongo.find_agent_state(session_id)),
         "toolInvocations": [_clean(t) for t in mongo.find_tool_invocations(session_id)],
+        "adkEvents": [_adk_event_view(e) for e in adk_events],
+        # A small sample of the catalog, so the "knowledge" collection is visible.
+        "products": [_clean(p) for p in mongo.col(mongo.PRODUCTS).find().limit(3)],
     }
 
 
