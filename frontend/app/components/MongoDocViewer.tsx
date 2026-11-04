@@ -10,32 +10,32 @@ import WhyMongoDBBanner from "./WhyMongoDBBanner";
 import Image from "next/image";
 import { palette } from "@leafygreen-ui/palette";
 
-type DocKey = "session" | "state" | "user" | "memory" | "adkSession" | "adkEvents";
+type DocKey = "session" | "memory" | "products" | "state" | "tools";
 
 interface Props {
   session: Record<string, unknown>;
   agentState: Record<string, unknown>;
-  user?: Record<string, unknown>;
   memory?: Record<string, unknown>;
-  adkSession?: Record<string, unknown>;
+  products?: unknown[];
+  toolInvocations?: unknown[];
   adkEvents?: unknown[];
   onLearnMore?: () => void;
 }
 
+// Tabs follow the "5 data needs" order.
 const LABELS: Record<DocKey, string> = {
   session: "sessions",
-  state: "agent_state",
-  user: "users",
   memory: "user_memory",
-  adkSession: "adk_sessions",
-  adkEvents: "adk_events",
+  products: "products",
+  state: "agent_state",
+  tools: "tool_invocations",
 };
 
 const whyMongoBanner = (onLearnMore?: () => void) => (
   <WhyMongoDBBanner title="🍃 One Platform - 5 data needs" onLearnMore={onLearnMore} learnMoreLabel="Learn More">
     <OrderedList>
       <OrderedListItem
-        title={<span><strong>Short Term Memory: </strong><InlineCode>sessions</InlineCode> + <InlineCode>adk_sessions</InlineCode>/<InlineCode>adk_events</InlineCode> — chat history + the persisted model context.</span>}
+        title={<span><strong>Short Term Memory: </strong><InlineCode>sessions</InlineCode> + <InlineCode>adk_events</InlineCode> — chat history + the persisted model context.</span>}
       />
       <OrderedListItem
         title={<span><strong>Long Term Memory: </strong><InlineCode>user_memory</InlineCode> — distilled facts that outlast a session.</span>}
@@ -66,26 +66,31 @@ function SectionLabel({ children }: { children: ReactNode }) {
 export function MongoDocViewer({
   session,
   agentState,
-  user = {},
   memory = {},
-  adkSession = {},
+  products = [],
+  toolInvocations = [],
   adkEvents = [],
   onLearnMore,
 }: Props) {
   const [activeDoc, setActiveDoc] = useState<DocKey>("session");
 
   const docs: Record<DocKey, unknown> = {
-    session,
-    state: agentState,
-    user,
+    // The model's persisted conversation context is shown as part of the session.
+    session: { ...session, adk_events: adkEvents },
     memory,
-    adkSession,
-    adkEvents,
+    products,
+    state: agentState,
+    tools: toolInvocations,
   };
 
-  const allEmpty = [session, agentState, user, memory, adkSession, adkEvents].every(
-    (d) => !d || Object.keys(d).length === 0,
-  );
+  const allEmpty = [
+    session,
+    agentState,
+    memory,
+    products,
+    toolInvocations,
+    adkEvents,
+  ].every((d) => !d || Object.keys(d).length === 0);
 
   if (allEmpty) {
     return (

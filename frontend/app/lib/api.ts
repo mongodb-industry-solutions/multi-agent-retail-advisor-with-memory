@@ -32,8 +32,8 @@ export interface TraceResponse {
   session: Record<string, unknown>;
   agentState: Record<string, unknown>;
   toolInvocations: ToolInvocation[];
-  adkSession: Record<string, unknown>;
   adkEvents: AdkEvent[];
+  products: Record<string, unknown>[];
 }
 
 export interface AgentSkill {
