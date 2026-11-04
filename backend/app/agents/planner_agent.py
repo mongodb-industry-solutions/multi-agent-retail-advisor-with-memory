@@ -19,6 +19,7 @@ from google.adk.tools.agent_tool import AgentTool
 
 from ..common import config
 from ..common.a2a import make_session_forwarding_client
+from ..common.errors import on_model_error
 from ..common.model import build_model
 
 INSTRUCTION = """\
@@ -78,6 +79,7 @@ def build_planner_agent() -> LlmAgent:
         model=build_model(),
         instruction=INSTRUCTION,
         tools=[AgentTool(agent=remote_profile), AgentTool(agent=remote_product)],
+        on_model_error_callback=on_model_error,
     )
 
 

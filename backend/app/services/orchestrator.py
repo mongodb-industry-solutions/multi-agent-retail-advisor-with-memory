@@ -66,6 +66,10 @@ async def _run_planner(input_text: str, user_id: str) -> str:
     ):
         if event.error_message:
             last_error = event.error_message
+            # A failure payload can still carry text (ADK wraps the exception
+            # message into the A2A task status). Never surface that as the answer
+            # — fall through to the clean failure reply below.
+            continue
         if event.is_final_response() and event.content and event.content.parts:
             text = event.content.parts[0].text
             if text and text.strip():
