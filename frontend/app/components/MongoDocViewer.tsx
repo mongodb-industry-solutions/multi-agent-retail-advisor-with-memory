@@ -10,13 +10,15 @@ import WhyMongoDBBanner from "./WhyMongoDBBanner";
 import Image from "next/image";
 import { palette } from "@leafygreen-ui/palette";
 
-type DocKey = "session" | "state" | "user" | "memory";
+type DocKey = "session" | "state" | "user" | "memory" | "adkSession" | "adkEvents";
 
 interface Props {
   session: Record<string, unknown>;
   agentState: Record<string, unknown>;
   user?: Record<string, unknown>;
   memory?: Record<string, unknown>;
+  adkSession?: Record<string, unknown>;
+  adkEvents?: unknown[];
   onLearnMore?: () => void;
 }
 
@@ -25,13 +27,15 @@ const LABELS: Record<DocKey, string> = {
   state: "agent_state",
   user: "users",
   memory: "user_memory",
+  adkSession: "adk_sessions",
+  adkEvents: "adk_events",
 };
 
 const whyMongoBanner = (onLearnMore?: () => void) => (
   <WhyMongoDBBanner title="🍃 One Platform - 5 data needs" onLearnMore={onLearnMore} learnMoreLabel="Learn More">
     <OrderedList>
       <OrderedListItem
-        title={<span><strong>Short Term Memory: </strong><InlineCode>sessions</InlineCode> — per-interaction chat history & working memory.</span>}
+        title={<span><strong>Short Term Memory: </strong><InlineCode>sessions</InlineCode> + <InlineCode>adk_sessions</InlineCode>/<InlineCode>adk_events</InlineCode> — chat history + the persisted model context.</span>}
       />
       <OrderedListItem
         title={<span><strong>Long Term Memory: </strong><InlineCode>user_memory</InlineCode> — distilled facts that outlast a session.</span>}
@@ -64,18 +68,22 @@ export function MongoDocViewer({
   agentState,
   user = {},
   memory = {},
+  adkSession = {},
+  adkEvents = [],
   onLearnMore,
 }: Props) {
   const [activeDoc, setActiveDoc] = useState<DocKey>("session");
 
-  const docs: Record<DocKey, Record<string, unknown>> = {
+  const docs: Record<DocKey, unknown> = {
     session,
     state: agentState,
     user,
     memory,
+    adkSession,
+    adkEvents,
   };
 
-  const allEmpty = [session, agentState, user, memory].every(
+  const allEmpty = [session, agentState, user, memory, adkSession, adkEvents].every(
     (d) => !d || Object.keys(d).length === 0,
   );
 

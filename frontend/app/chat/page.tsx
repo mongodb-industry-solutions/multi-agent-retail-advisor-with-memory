@@ -546,6 +546,8 @@ export default function ChatPage() {
                     agentState={trace?.agentState ?? {}}
                     user={profile?.user ?? {}}
                     memory={profile?.memory ?? {}}
+                    adkSession={trace?.adkSession ?? {}}
+                    adkEvents={trace?.adkEvents ?? []}
                     onLearnMore={() => setShowWhyModal(true)}
                   />
                 </div>

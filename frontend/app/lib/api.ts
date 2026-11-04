@@ -21,10 +21,19 @@ export interface ToolInvocation {
   error?: string;
 }
 
+export interface AdkEvent {
+  event_id?: string;
+  author?: string;
+  timestamp?: number;
+  text?: string;
+}
+
 export interface TraceResponse {
   session: Record<string, unknown>;
   agentState: Record<string, unknown>;
   toolInvocations: ToolInvocation[];
+  adkSession: Record<string, unknown>;
+  adkEvents: AdkEvent[];
 }
 
 export interface AgentSkill {

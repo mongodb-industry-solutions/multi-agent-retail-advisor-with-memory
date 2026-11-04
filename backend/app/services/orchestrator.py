@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field
 
 from ..common import config, context, mongo
 from ..common.a2a import make_session_forwarding_client
-from ..common.session_service import MongoSessionService
+from ..common.session_service import ADK_EVENTS, ADK_SESSIONS, MongoSessionService
 
 APP_NAME = "retail-advisor"
 
@@ -186,12 +186,39 @@ async def chat(req: ChatRequest) -> ChatResponse:
     return ChatResponse(reply=reply, sessionId=session_id, toolCallCount=tool_count)
 
 
+def _adk_event_view(doc: dict) -> dict:
+    """Project a stored ADK event down to the fields worth showing in the UI."""
+    data = doc.get("event_data") or {}
+    parts = (data.get("content") or {}).get("parts") or []
+    text = "\n".join(
+        p.get("text", "") for p in parts if isinstance(p, dict) and p.get("text")
+    ).strip()
+    return {
+        "event_id": doc.get("event_id"),
+        "author": data.get("author"),
+        "timestamp": doc.get("timestamp"),
+        "text": text,
+    }
+
+
 @app.get("/api/trace/{session_id}")
 def get_trace(session_id: str) -> dict:
+    # The model's own conversation, persisted by MongoSessionService. Keyed by the
+    # same sessionId as the app transcript, but stored as ADK sessions/events.
+    adk_session = mongo.col(ADK_SESSIONS).find_one(
+        {"app_name": APP_NAME, "session_id": session_id}
+    )
+    adk_events = list(
+        mongo.col(ADK_EVENTS)
+        .find({"app_name": APP_NAME, "session_id": session_id})
+        .sort("timestamp", 1)
+    )
     return {
         "session": _clean(mongo.find_session(session_id)),
         "agentState": _clean(mongo.find_agent_state(session_id)),
         "toolInvocations": [_clean(t) for t in mongo.find_tool_invocations(session_id)],
+        "adkSession": _clean(adk_session),
+        "adkEvents": [_adk_event_view(e) for e in adk_events],
     }
 
 
