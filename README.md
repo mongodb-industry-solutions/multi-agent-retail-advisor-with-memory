@@ -55,12 +55,17 @@ The **PlannerAgent** receives the user's message and decides — via the LLM —
 
 Because tools now run in separate processes from the Planner, the originating chat `session_id` is propagated across every A2A hop via an `X-Session-Id` HTTP header. Each specialist stamps that id onto its `tool_invocations` audit records, so the Trace panel reconstructs the full cross-service execution from one session id.
 
+### Conversation continuity (short-term memory)
+
+A chat is more than one message at a time. The orchestrator reuses **one ADK session per conversation**, keyed by the same `sessionId` it stores in MongoDB, so the model sees the whole thread rather than just the latest message. `MongoSessionService` persists that session in `adk_sessions` / `adk_events`, so context survives restarts and is shared across replicas. (Long-term memory is a separate concern — see `user_memory` below.)
+
 ### MongoDB as the data and memory plane
 
 MongoDB Atlas is not just the product database — it is the substrate the entire agent system runs on:
 
 - **Vector Search** powers semantic product retrieval with pre-filter support (price, size, waterproof, category).
 - **user_memory** gives agents persistent, updateable long-term memory per user — facts learned in one session survive to the next.
+- **adk_sessions / adk_events** persist the model's per-conversation context (short-term memory), so a follow-up lands in context and survives a restart.
 - **agent_state** tracks the workflow lifecycle, making executions inspectable.
 - **tool_invocations** is a full audit log of every tool call with inputs, outputs, and latency — written by whichever specialist service ran the tool, correlated by session id.
 
@@ -76,7 +81,7 @@ MongoDB Atlas is not just the product database — it is the substrate the entir
 
 ### The UI
 
-The chat interface is split into two panels: a chat window (left) and a live debug panel (right) with **Agents** (live-discovered AgentCards), **Trace** (every tool invocation), and **MongoDB** (raw documents) tabs. The frontend is unchanged by the rewrite — it talks to the orchestrator over the same REST contract.
+The chat interface is split into two panels: a chat window (left) and a live debug panel (right) with **Agents** (live-discovered AgentCards), **Trace** (every tool invocation), and **MongoDB** (raw documents — including the persisted `adk_sessions`/`adk_events`) tabs. The frontend is unchanged by the rewrite — it talks to the orchestrator over the same REST contract.
 
 ---
 
@@ -86,7 +91,7 @@ The chat interface is split into two panels: a chat window (left) and a live deb
 Frontend (Next.js :3000)
     │  POST /api/chat, GET /api/trace, GET /api/agents, ...
     ▼
-orchestrator (:8080)  ── MongoDB bookkeeping (sessions, agent_state)
+orchestrator (:8080)  ── MongoDB bookkeeping (sessions, agent_state, adk_sessions/adk_events)
     │  A2A: message/send  (X-Session-Id forwarded)
     ▼
 planner-agent-service (:8081)   PlannerAgent
@@ -105,6 +110,8 @@ MongoDB Atlas  ── tool_invocations written by each specialist, keyed by sess
 | Collection | What goes in |
 |---|---|
 | `sessions` | Full conversation history (append per turn) |
+| `adk_sessions` | ADK session state for the model's conversation (one per sessionId) |
+| `adk_events` | ADK events — the model's turn-by-turn context, replayed to the LLM |
 | `agent_state` | Workflow status: running → completed |
 | `tool_invocations` | Every tool call: agent, tool, input, output, latency_ms |
 | `user_memory` | Long-term facts learned about the user (upserted) |

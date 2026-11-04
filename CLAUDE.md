@@ -114,7 +114,8 @@ app/
 │   ├── model.py     # LiteLlm(Anthropic) factory
 │   ├── tools.py     # the 4 ADK tools (search_products + 3 profile/memory tools)
 │   ├── context.py   # contextvar carrying session_id across the request
-│   └── a2a.py       # httpx client that forwards X-Session-Id downstream
+│   ├── a2a.py       # httpx client that forwards X-Session-Id downstream
+│   └── session_service.py  # MongoSessionService: ADK sessions/events in MongoDB
 ├── agents/          # ADK agent definitions
 │   ├── product_agent.py   # LlmAgent + search_products
 │   ├── profile_agent.py   # LlmAgent + memory tools
@@ -129,7 +130,7 @@ app/
 
 ### Request flow
 
-`POST /api/chat` → orchestrator writes `sessions` + `agent_state`, sets the `session_id` contextvar, then runs a `RemoteA2aAgent(planner)` via an ADK `Runner`. The planner (in its own service) fans out to Profile and Product over A2A. Each specialist tool writes to `tool_invocations`. The orchestrator counts them and completes `agent_state`.
+`POST /api/chat` → orchestrator writes `sessions` + `agent_state`, sets the `session_id` contextvar, then runs a `RemoteA2aAgent(planner)` via an ADK `Runner` (one ADK session per conversation, keyed by the app `sessionId` and persisted by `common/session_service.py`). The planner (in its own service) fans out to Profile and Product over A2A. Each specialist tool writes to `tool_invocations`. The orchestrator counts them and completes `agent_state`.
 
 ### MongoDB Collections
 
@@ -139,6 +140,8 @@ app/
 | `users` | User preferences, sizes, favorite brands |
 | `user_memory` | Long-term facts the agents learn per user |
 | `sessions` | Full conversation history per sessionId |
+| `adk_sessions` | ADK conversation session state (one per sessionId) |
+| `adk_events` | ADK events — the model's turn-by-turn context, one doc per event |
 | `agent_state` | Workflow lifecycle: running → completed/failed |
 | `tool_invocations` | Audit log: every tool call with input, output, latency_ms |
 
@@ -153,6 +156,7 @@ app/
 
 - **Every agent is an independent A2A service.** `to_a2a(agent, ...)` (ADK) turns each `LlmAgent` into a Starlette app that serves its card at `/.well-known/agent-card.json` and handles `message/send` over JSON-RPC. The planner consumes the specialists with ADK's `RemoteA2aAgent` (which resolves the well-known card and calls it).
 - **Session correlation across processes.** Since tools run in separate services from the planner, the originating `session_id` rides an `X-Session-Id` HTTP header (injected by `common/a2a.py` from a contextvar, read back by `session_middleware.py`). Tools stamp `tool_invocations` with it so the trace endpoint reconstructs the whole cross-service run.
+- **Conversation continuity is a MongoDB-backed ADK session.** `common/session_service.py` implements ADK's `BaseSessionService` over MongoDB (`adk_sessions` + `adk_events`). The orchestrator reuses one ADK session per app `sessionId`, and each A2A server runs a `Runner` with the same service, so the model's context persists across restarts instead of living in process memory.
 - **Tools are synchronous** functions so ADK offloads them to a worker thread, keeping the sync PyMongo calls off the event loop.
 - **`search_products`** (`common/tools.py`) uses Voyage 4 asymmetric embedding (docs `voyage-4-large`, queries `voyage-4-lite`) + a native `$rerank` (`rerank-2.5`) stage, then degrades gracefully: vector+rerank → vector-only → `$search` text. Native reranking requires MongoDB 8.3+ with the Native Reranking Preview enabled; after changing the embedding model, re-seed with `python helpers/seed.py --force`.
 - The **orchestrator preserves the exact REST contract** the frontend depends on (`/api/chat`, `/api/trace`, `/api/agents`, `/api/profile`, `/api/sessions`); the frontend is unchanged by the rewrite.
