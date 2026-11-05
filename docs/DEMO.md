@@ -71,6 +71,8 @@ After the response:
 
 > "The ProfileAgent's UpdateUserMemory tool just wrote a new fact to the `user_memory` collection. Next time Alice asks anything, that preference is already there — no re-prompting needed."
 
+The follow-up also stayed in context: the Planner is in the same ADK session, and its events are persisted in MongoDB (`adk_events`) — the model sees the whole conversation, not just the last message.
+
 ---
 
 ## Step 5 — Atlas Data Explorer (optional, high impact)
@@ -82,6 +84,7 @@ Open MongoDB Atlas → Data Explorer → your database:
 | `tool_invocations` | 4–6 documents from this conversation; show `input`, `output`, `latency_ms` |
 | `user_memory` | `user001` document with `facts` array updated |
 | `sessions` | Full message history with timestamps |
+| `adk_events` | The model's persisted conversation context — replayed to the LLM each turn |
 | `agent_state` | `status: "completed"`, `steps_taken`, `agents_called` |
 
 > "This is MongoDB as the agentic data plane. Not just a database — the substrate that makes the system observable, resumable, and improvable."

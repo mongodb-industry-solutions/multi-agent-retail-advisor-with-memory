@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from google.adk.agents import LlmAgent
 
+from ..common.errors import on_model_error
 from ..common.model import build_model
 from ..common.tools import search_products
 
@@ -36,6 +37,7 @@ def build_product_agent() -> LlmAgent:
         model=build_model(),
         instruction=INSTRUCTION,
         tools=[search_products],
+        on_model_error_callback=on_model_error,
     )
 
 

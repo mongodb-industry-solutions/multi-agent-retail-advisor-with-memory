@@ -19,6 +19,7 @@ from google.adk.tools.agent_tool import AgentTool
 
 from ..common import config
 from ..common.a2a import make_session_forwarding_client
+from ..common.errors import on_model_error
 from ..common.model import build_model
 
 INSTRUCTION = """\
@@ -29,7 +30,9 @@ You have access to two specialist agents via tools:
 - ProductAgent: searches the product catalog using semantic vector search + filters
 
 WORKFLOW:
-1. First, call ProfileAgent to get the user's context and preferences
+1. ALWAYS start by calling ProfileAgent to refresh the user's profile and long-term
+   memory — on every turn, even if you already saw it earlier in this conversation.
+   The conversation transcript is NOT the source of truth for memory; MongoDB is.
 2. Then, call ProductAgent to search for relevant products using the user's preferences as context
 3. If you learn new facts about the user from their request, call ProfileAgent to update memory
 4. Finally, synthesize everything into a warm, helpful product recommendation
@@ -78,6 +81,7 @@ def build_planner_agent() -> LlmAgent:
         model=build_model(),
         instruction=INSTRUCTION,
         tools=[AgentTool(agent=remote_profile), AgentTool(agent=remote_product)],
+        on_model_error_callback=on_model_error,
     )
 
 

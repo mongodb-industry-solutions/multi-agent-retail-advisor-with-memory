@@ -45,6 +45,8 @@ python helpers/seed.py
 
 This inserts 135 outdoor apparel products + sample users into MongoDB and creates both Atlas search indexes. Atlas auto-embeds the `search_text` field in the background (~1–2 min). Only needed once — all data lives in MongoDB afterwards. Use `--force` to drop and re-seed the products collection.
 
+The agent conversation collection (`adk_events`) needs no seeding — it is created automatically on the first chat.
+
 ---
 
 ## 3. Start the stack
