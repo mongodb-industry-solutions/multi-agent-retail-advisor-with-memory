@@ -61,7 +61,7 @@ export function SearchVectorTab() {
         style={{ minHeight: 140, backgroundColor: "#f9fafb" }}
       >
           <Image
-            src="/images/search-and-vector-search.png"
+            src="/images/search-and-vector-search.svg"
             alt="Vector search and text search fallback flow"
             width={700}
             height={300}
@@ -88,7 +88,7 @@ export function SearchVectorTab() {
             className="text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full"
             style={{ color: "#92400e", backgroundColor: "#fefce8", border: "1px solid #fde68a" }}
           >
-            fallback — if vector search unavailable
+            Resilience: Full-Text Search (same collection)
           </span>
           <div className="flex-1 border-t border-dashed border-gray-300" />
         </div>
@@ -106,7 +106,7 @@ export function SearchVectorTab() {
       </Callout>
 
       <Callout variant="tip">
-        The fallback is automatic — the agent never knows the difference, and your data never moves.
+        The graceful degradation is automatic — the agent never knows the difference, and your data never moves.
       </Callout>
     </div>
   );
