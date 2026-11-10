@@ -2,13 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## SECURITY RULES
+- NEVER read, output, or search inside `.env` or `.env.*` files.
+- STOP immediately if you encounter API keys, credentials, passwords, or tokens.
+- Do not execute commands like `printenv`, `env`, `kubectl`, `helm` or `cat .env`.
+
 ## Project Overview
 
 A retail product advisor **multi-agent demo** showcasing:
 - **Google ADK (Python)** orchestration with a Planner delegating to specialist sub-agents
 - **Real A2A (Agent-to-Agent) protocol** — each agent is an independent service that publishes a spec-compliant AgentCard at `/.well-known/agent-card.json` and communicates over **JSON-RPC 2.0**. Agents talk over the network, not via in-process calls.
 - **MongoDB Atlas as the agentic data plane** — product catalog, user profiles, long-term memory, session history, orchestration state, and tool audit logs all live there
-- **Anthropic** as the LLM, via LiteLLM through an Azure API Management gateway
+- **Anthropic** as the LLM, via LiteLLM
 
 The backend is Python (FastAPI + ADK + a2a-sdk); the frontend is Next.js. Everything runs via Docker Compose.
 
@@ -87,15 +92,15 @@ Only needed once — all data lives in MongoDB afterwards.
 |---|---|
 | `MONGODB_URI` | Atlas connection string |
 | `MONGODB_DATABASE` | Database name |
-| `LLM_API_KEY` | Azure API Management key for Claude |
-| `LLM_BASE_URL` | Azure gateway URL |
+| `LLM_API_KEY` | API key for the Anthropic (or Anthropic-compatible) endpoint |
+| `LLM_BASE_URL` | Optional base URL of an Anthropic-compatible endpoint (blank = api.anthropic.com) |
 | `LLM_MODEL` | Chat model, e.g. `claude-sonnet-4-5` (or a prefixed `openai/gpt-4o`). |
 | `VOYAGE_DOC_MODEL` / `VOYAGE_QUERY_MODEL` | Optional. Corpus vs query embedding models (default `voyage-4-large` / `voyage-4-lite`). |
 | `RERANK_MODEL` | Optional. Native reranker (default `rerank-2.5`). |
 
 The A2A topology vars (`PLANNER_AGENT_URL`, `PROFILE_AGENT_URL`, `PRODUCT_AGENT_URL`, `A2A_HOST`, ports) are injected per service by `docker-compose.yml`; locally they default to loopback (`app/common/config.py`).
 
-**LLM header note:** the Azure gateway needs an `api-key` header instead of the standard `x-api-key`. `app/common/model.py` sends a placeholder api key and injects the real credential via LiteLLM `extra_headers`. If the gateway URL already includes `/v1/messages`, set `LITELLM_ANTHROPIC_DISABLE_URL_SUFFIX=true`.
+**LLM header note:** the model authenticates with the standard `x-api-key` header that LiteLLM derives from `api_key` — no placeholder/`extra_headers` workaround. `LLM_BASE_URL` is optional: LiteLLM appends `/v1/messages` and falls back to `https://api.anthropic.com` when unset.
 
 ## Architecture
 
@@ -106,10 +111,11 @@ app/
 ├── common/          # framework-neutral shared layer
 │   ├── config.py    # env-driven configuration
 │   ├── mongo.py     # PyMongo client + collection names + repositories
-│   ├── model.py     # LiteLlm(Anthropic) factory (Azure gateway header)
+│   ├── model.py     # LiteLlm(Anthropic) factory
 │   ├── tools.py     # the 4 ADK tools (search_products + 3 profile/memory tools)
 │   ├── context.py   # contextvar carrying session_id across the request
-│   └── a2a.py       # httpx client that forwards X-Session-Id downstream
+│   ├── a2a.py       # httpx client that forwards X-Session-Id downstream
+│   └── session_service.py  # MongoSessionService: ADK events persisted in MongoDB
 ├── agents/          # ADK agent definitions
 │   ├── product_agent.py   # LlmAgent + search_products
 │   ├── profile_agent.py   # LlmAgent + memory tools
@@ -124,7 +130,7 @@ app/
 
 ### Request flow
 
-`POST /api/chat` → orchestrator writes `sessions` + `agent_state`, sets the `session_id` contextvar, then runs a `RemoteA2aAgent(planner)` via an ADK `Runner`. The planner (in its own service) fans out to Profile and Product over A2A. Each specialist tool writes to `tool_invocations`. The orchestrator counts them and completes `agent_state`.
+`POST /api/chat` → orchestrator writes `sessions` + `agent_state`, sets the `session_id` contextvar, then runs a `RemoteA2aAgent(planner)` via an ADK `Runner` (one ADK session per conversation, keyed by the app `sessionId` and persisted by `common/session_service.py`). The planner (in its own service) fans out to Profile and Product over A2A. Each specialist tool writes to `tool_invocations`. The orchestrator counts them and completes `agent_state`.
 
 ### MongoDB Collections
 
@@ -134,6 +140,7 @@ app/
 | `users` | User preferences, sizes, favorite brands |
 | `user_memory` | Long-term facts the agents learn per user |
 | `sessions` | Full conversation history per sessionId |
+| `adk_events` | The model's turn-by-turn conversation context, one doc per event |
 | `agent_state` | Workflow lifecycle: running → completed/failed |
 | `tool_invocations` | Audit log: every tool call with input, output, latency_ms |
 
@@ -148,6 +155,7 @@ app/
 
 - **Every agent is an independent A2A service.** `to_a2a(agent, ...)` (ADK) turns each `LlmAgent` into a Starlette app that serves its card at `/.well-known/agent-card.json` and handles `message/send` over JSON-RPC. The planner consumes the specialists with ADK's `RemoteA2aAgent` (which resolves the well-known card and calls it).
 - **Session correlation across processes.** Since tools run in separate services from the planner, the originating `session_id` rides an `X-Session-Id` HTTP header (injected by `common/a2a.py` from a contextvar, read back by `session_middleware.py`). Tools stamp `tool_invocations` with it so the trace endpoint reconstructs the whole cross-service run.
+- **Conversation continuity is a MongoDB-backed ADK session.** `common/session_service.py` implements ADK's `BaseSessionService` over MongoDB (`adk_events`; a session is derived from its events, since the demo uses no ADK state). The orchestrator reuses one ADK session per app `sessionId`, and each A2A server runs a `Runner` with the same service, so the model's context persists across restarts instead of living in process memory.
 - **Tools are synchronous** functions so ADK offloads them to a worker thread, keeping the sync PyMongo calls off the event loop.
 - **`search_products`** (`common/tools.py`) uses Voyage 4 asymmetric embedding (docs `voyage-4-large`, queries `voyage-4-lite`) + a native `$rerank` (`rerank-2.5`) stage, then degrades gracefully: vector+rerank → vector-only → `$search` text. Native reranking requires MongoDB 8.3+ with the Native Reranking Preview enabled; after changing the embedding model, re-seed with `python helpers/seed.py --force`.
 - The **orchestrator preserves the exact REST contract** the frontend depends on (`/api/chat`, `/api/trace`, `/api/agents`, `/api/profile`, `/api/sessions`); the frontend is unchanged by the rewrite.

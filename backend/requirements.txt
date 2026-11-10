@@ -1,6 +1,13 @@
-# Google ADK with A2A protocol support + LiteLLM (Anthropic Claude via the Azure
-# API Management gateway). The [a2a] extra pulls a2a-sdk; [extensions] pulls litellm.
+# Google ADK with A2A protocol support + LiteLLM (Anthropic Claude). The [a2a]
+# extra pulls a2a-sdk; [extensions] pulls litellm.
 google-adk[a2a,extensions]==2.5.0
+# Constrain LiteLLM below the 1.106.0 regression (BerriAI/litellm#46045): from
+# 1.106.0, any completion carrying `tools` eagerly imports the MCP proxy module
+# and raises "No module named 'mcp'" on a base install (mcp only ships with the
+# litellm[proxy] extra). Pulled transitively by google-adk[extensions]; pinned
+# here so image builds stay reproducible. Raise the ceiling once the upstream
+# fix (PR #46269) ships in a release.
+litellm<1.106.0
 # A2A server streaming routes (message/stream) require sse-starlette explicitly.
 sse-starlette==3.4.5
 
@@ -12,7 +19,7 @@ uvicorn[standard]==0.51.0
 httpx==0.28.1
 
 # MongoDB — the agentic data plane
-pymongo[srv]==4.17.0
+pymongo[srv]==4.18.3
 
 # Local .env loading
 python-dotenv==1.2.2

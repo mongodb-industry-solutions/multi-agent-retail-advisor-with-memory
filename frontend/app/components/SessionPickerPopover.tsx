@@ -134,10 +134,10 @@ export function SessionPickerPopover({
       <div className="flex items-start gap-1 px-3 py-2.5 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
         <button
           onClick={() => handleToggleStar(s)}
-          className={`shrink-0 mt-0.5 text-base leading-none ${
+          className={`shrink-0 mt-0.5 text-lg leading-none rounded focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 ${
             s.starred
-              ? "text-yellow-400"
-              : "text-gray-200 hover:text-yellow-300"
+              ? "text-yellow-500"
+              : "text-gray-400 hover:text-yellow-500"
           }`}
           aria-label={s.starred ? "Unstar session" : "Star session"}
         >

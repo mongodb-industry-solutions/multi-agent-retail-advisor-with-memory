@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from google.adk.agents import LlmAgent
 
+from ..common.errors import on_model_error
 from ..common.model import build_model
 from ..common.tools import get_user_memory, get_user_profile, update_user_memory
 
@@ -42,6 +43,7 @@ def build_profile_agent() -> LlmAgent:
         model=build_model(),
         instruction=INSTRUCTION,
         tools=[get_user_profile, get_user_memory, update_user_memory],
+        on_model_error_callback=on_model_error,
     )
 
 
