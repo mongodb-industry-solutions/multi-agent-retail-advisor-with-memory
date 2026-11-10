@@ -75,9 +75,9 @@ MongoDB Atlas is not just the product database — it is the substrate the entir
 
 **Then — native reranking:** a `$rerank` stage reorders the vector-search candidates with a Voyage reranker (**`rerank-2.5`**) — entirely inside the aggregation pipeline, no external API — before returning the top matches. Each result carries both `vectorScore` and `rerankScore`.
 
-**Fallback — Atlas full-text Search:** if vector search or reranking is unavailable (index not migrated, reranking Preview not enabled, tier too low), the tool degrades gracefully — vector-only, then `$search` across `name`, `description`, and `brand`. The Trace panel reveals which path was taken.
+**Fallback — Atlas full-text Search:** if vector search or reranking is unavailable (index not migrated, reranking not enabled, tier too low), the tool degrades gracefully — vector-only, then `$search` across `name`, `description`, and `brand`. The Trace panel reveals which path was taken.
 
-> Model names are env-configurable (`VOYAGE_DOC_MODEL`, `VOYAGE_QUERY_MODEL`, `RERANK_MODEL`). Native reranking needs an Atlas cluster on MongoDB 8.3+ with the **Native Reranking Preview** enabled in Project Settings; re-seed with `python helpers/seed.py --force` after changing the embedding model.
+> Model names are env-configurable (`VOYAGE_DOC_MODEL`, `VOYAGE_QUERY_MODEL`, `RERANK_MODEL`). Native reranking needs an Atlas cluster on MongoDB 8.3+ with  ** Native Reranking ** enabled in Project Settings; re-seed with `python helpers/seed.py --force` after changing the embedding model.
 
 ### The UI
 

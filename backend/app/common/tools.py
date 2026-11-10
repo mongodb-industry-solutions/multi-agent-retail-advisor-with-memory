@@ -194,7 +194,7 @@ def search_products(
     try:
         # Preferred path: asymmetric vector search + native reranking. Degrade
         # gracefully so the demo stays alive if native reranking isn't enabled
-        # (Preview) or the index hasn't been migrated to the Voyage 4 models.
+        # or the index hasn't been migrated to the Voyage 4 models.
         try:
             result = _vector_search(
                 query, max_price, size, waterproof, eco_friendly, category, rerank=True
